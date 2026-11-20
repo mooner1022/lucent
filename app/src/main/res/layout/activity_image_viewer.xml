@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  그림을 크게 보는 화면: 화면 가득 그림 하나, 위에 닫기와 이름. 두 손가락으로 키우고 줄이며, 두 번 누르면 확대된다.
+  멈춘 그림은 조각내어 올리는 뷰(zoom)가, 움직이는 그림과 그 뷰가 풀지 못하는 그림은 보통의 뷰(still)가 그린다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_xs"
+        android:paddingEnd="@dimen/gutter">
+
+        <ImageButton
+            android:id="@+id/close"
+            style="@style/IconButton"
+            android:contentDescription="@string/viewer_close"
+            android:src="@drawable/ic_close"
+            app:tint="@color/band_white"/>
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/Text.Section"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_xs"
+            android:layout_weight="1"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="@color/band_white"
+            tools:text="긴 화면.png"/>
+    </LinearLayout>
+
+    <!-- 그림은 이름 줄 아래의 남은 자리를 다 쓴다(이름 줄이 그림을 가리지 않는다). -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+            android:id="@+id/zoom"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"/>
+
+        <ImageView
+            android:id="@+id/still"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            tools:ignore="ContentDescription"/>
+    </FrameLayout>
+</LinearLayout>

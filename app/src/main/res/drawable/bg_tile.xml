@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 파일 아이콘 자리·이미지 자리표시: 이미지와 같은 radius_image. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/sky_wash"/>
+    <corners android:radius="@dimen/radius_image"/>
+</shape>

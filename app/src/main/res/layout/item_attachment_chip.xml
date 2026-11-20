@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  보낼 파일 한 개: 입력창 위에 놓이는 칩. 올리는 중이면 아이콘 자리에 진행 고리가 돈다.
+  그림이면 맨 앞에 작은 그림이 놓이고(칩의 앞 여백은 코드가 space_xs로 줄인다), 아이콘 자리는 올리는 중이거나 올리지
+  못했을 때만 보인다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/chip_height"
+    android:layout_marginEnd="@dimen/space_s"
+    android:background="@drawable/bg_chip"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/space_m"
+    android:paddingEnd="0dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/thumb"
+        android:layout_width="@dimen/chip_thumb"
+        android:layout_height="@dimen/chip_thumb"
+        android:layout_marginEnd="@dimen/space_s"
+        android:background="@color/sky_wash"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.ChipThumb"/>
+
+    <FrameLayout
+        android:id="@+id/iconSlot"
+        android:layout_width="@dimen/icon_s"
+        android:layout_height="@dimen/icon_s">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_file"
+            app:tint="@color/sky_deep"/>
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:indeterminate="false"
+            android:max="100"
+            android:visibility="gone"
+            app:indicatorColor="@color/sky_deep"
+            app:indicatorSize="@dimen/icon_s"
+            app:trackColor="@color/surface_alt"
+            app:trackThickness="@dimen/stroke_emphasis"
+            tools:progress="40"
+            tools:visibility="visible"/>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/name"
+        style="@style/Text.Label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_s"
+        android:ellipsize="middle"
+        android:maxWidth="@dimen/chip_text_max_width"
+        android:maxLines="1"
+        android:textColor="@color/ink"
+        tools:text="영수증.jpg"/>
+
+    <ImageButton
+        android:id="@+id/remove"
+        android:layout_width="@dimen/chip_height"
+        android:layout_height="@dimen/chip_height"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/attachment_remove"
+        android:padding="@dimen/space_m"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_close"
+        app:tint="@color/ink_faint"/>
+</LinearLayout>

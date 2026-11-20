@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 연결 설정: 상자 없이 바탕 위에 섹션 이름 → 입력 칸. 본문은 하늘 머리말 뒤까지 이어진다. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:id="@+id/content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/gutter"
+            android:paddingTop="@dimen/space_l"
+            android:paddingBottom="@dimen/space_l">
+
+            <!-- 처음 연결할 때만: 루시아의 얼굴과 첫 줄. 주소·토큰을 바꾸러 왔을 때는 보이지 않는다. -->
+            <LinearLayout
+                android:id="@+id/hero"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/space_l"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:layout_width="@dimen/avatar_hero"
+                    android:layout_height="@dimen/avatar_hero"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_portrait_placeholder"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>
+
+                <TextView
+                    style="@style/Text.Hero"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_l"
+                    android:layout_weight="1"
+                    android:text="@string/setup_hero"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/intro"
+                style="@style/Text.BodyS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/setup_intro"
+                android:textColor="@color/ink_muted"/>
+
+            <TextView
+                style="@style/SectionTitle"
+                android:layout_marginTop="@dimen/space_xl"
+                android:text="@string/setup_addresses"/>
+
+            <TextView
+                style="@style/SectionBody"
+                android:text="@string/setup_addresses_help"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/homeLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_l"
+                android:hint="@string/setup_home_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/home"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:importantForAutofill="no"
+                    android:inputType="textUri"
+                    android:singleLine="true"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/publicLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_m"
+                android:hint="@string/setup_public_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/publicAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:importantForAutofill="no"
+                    android:inputType="textUri"
+                    android:singleLine="true"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                style="@style/SectionTitle"
+                android:layout_marginTop="@dimen/space_xl"
+                android:text="@string/setup_token"/>
+
+            <TextView
+                android:id="@+id/tokenHelp"
+                style="@style/SectionBody"
+                android:text="@string/setup_token_help"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tokenLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_l"
+                android:hint="@string/setup_token_hint"
+                app:endIconContentDescription="@string/setup_paste"
+                app:endIconDrawable="@drawable/ic_paste"
+                app:endIconMode="custom">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/token"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:importantForAutofill="no"
+                    android:inputType="textPassword|textNoSuggestions"
+                    android:singleLine="true"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 연결 확인 결과: 길마다 한 줄. 결과가 있을 때만 나타난다. -->
+            <LinearLayout
+                android:id="@+id/results"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_l"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_xl"
+                android:gravity="end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/check"
+                    style="@style/Btn.Secondary"
+                    android:text="@string/setup_check"/>
+
+                <TextView
+                    android:id="@+id/save"
+                    style="@style/Btn.Primary"
+                    android:layout_marginStart="@dimen/space_s"
+                    android:text="@string/setup_save"/>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <include
+        android:id="@+id/pageHeader"
+        layout="@layout/view_page_header"/>
+</FrameLayout>

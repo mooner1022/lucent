@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  파일 미리보기(StarLight의 sheet_agent_file_preview와 같은 짜임): 머리(이름·크기) → 내용 → 할 일(공유·저장·다른 앱).
+  내용은 넷 중 하나다: 그림 그대로, 마크다운으로 푼 글(표는 가로로 구른다), 고정폭 글(줄을 꺾거나, 꺾지 않고 가로로 굴리거나),
+  PDF의 쪽들. 받는 중이면 고리가, 받지 못했거나 보일 수 없으면 안내 한 줄(과 다시 시도)이 내용 위에 놓인다.
+  내용이 길면 가운데만 구르고 아래의 할 일은 제자리에 있다(그래서 구르는 칸은 높이가 내용만큼이면서 무게를 가진다: 짧으면
+  시트가 낮고, 길면 그 칸만 줄어든다). 포함은 한 겹: 시트 → 내용(면을 더 두지 않는다).
+  할 일의 아이콘은 icon_s로 그린다(글자에 붙이는 그림으로는 크기를 정할 수 없어 따로 둔다).
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/space_m"
+    android:paddingBottom="@dimen/space_m">
+
+    <include
+        android:id="@+id/head"
+        layout="@layout/view_sheet_header"/>
+
+    <TextView
+        android:id="@+id/meta"
+        style="@style/Text.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space_xl"
+        android:gravity="center"
+        tools:text="1.8 KB · 텍스트"/>
+
+    <!-- 받는 중. 크기를 알면 얼마나 받았는지 고리가 찬다. -->
+    <LinearLayout
+        android:id="@+id/loading"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/preview_wait_height"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            app:indicatorColor="@color/sky_deep"
+            app:indicatorSize="@dimen/icon_m"
+            app:trackColor="@color/sky_wash"
+            app:trackThickness="@dimen/stroke_emphasis"/>
+
+        <TextView
+            style="@style/Text.Label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_m"
+            android:text="@string/preview_loading"/>
+    </LinearLayout>
+
+    <!-- 앞부분만 보인다는 것, 받지 못했거나 보일 수 없다는 것. -->
+    <TextView
+        android:id="@+id/note"
+        style="@style/Text.Label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space_xl"
+        android:layout_marginTop="@dimen/space_m"
+        android:visibility="gone"
+        tools:text="파일이 커서 앞부분 256 KB만 보여요."
+        tools:visibility="visible"/>
+
+    <!-- 받지 못한 것이 잠깐의 일(연결 끊김 등)일 때만 보인다. -->
+    <TextView
+        android:id="@+id/retry"
+        style="@style/Btn.Text"
+        android:layout_marginStart="@dimen/space_m"
+        android:layout_marginTop="@dimen/space_xs"
+        android:text="@string/preview_retry"
+        android:visibility="gone"
+        tools:visibility="visible"/>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_m"
+        android:layout_weight="1"
+        android:overScrollMode="never"
+        tools:ignore="InefficientWeight">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/gutter"
+            android:paddingBottom="@dimen/space_l">
+
+            <!-- 마크다운: 글 덩이와 표가 차례로 놓인다(코드가 채운다). -->
+            <LinearLayout
+                android:id="@+id/blocks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"/>
+
+            <!-- 줄글: 화면 폭에 맞춰 줄을 꺾는다. -->
+            <TextView
+                android:id="@+id/code"
+                style="@style/Text.Code"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/space_s"
+                android:textIsSelectable="true"
+                android:visibility="gone"/>
+
+            <!-- 기록·표·코드: 줄을 꺾지 않고 가로로 굴려 본다. -->
+            <HorizontalScrollView
+                android:id="@+id/codeScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:overScrollMode="never"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/codeWide"
+                    style="@style/Text.Code"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="@dimen/space_s"
+                    android:textIsSelectable="true"/>
+            </HorizontalScrollView>
+
+            <!-- 누르면 크게 보는 화면이 열린다. -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/image"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:adjustViewBounds="true"
+                android:background="@color/sky_wash"
+                android:foreground="?attr/selectableItemBackground"
+                android:visibility="gone"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- PDF의 쪽들. 보이는 쪽만 그린다(쪽이 많아도 한꺼번에 그리지 않는다). -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/pages"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_m"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="@dimen/gutter"
+        android:paddingBottom="@dimen/space_l"
+        android:visibility="gone"
+        tools:ignore="InefficientWeight"/>
+
+    <!-- 내용 없이 안내만 있을 때, 안내와 아래의 선 사이를 띄운다. -->
+    <Space
+        android:id="@+id/gap"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/space_l"
+        android:visibility="gone"/>
+
+    <View style="@style/Hairline"/>
+
+    <!-- 할 일은 글자 단추 셋이다(가장 약한 단추). 파일을 다 받기 전에는 흐리다. -->
+    <LinearLayout
+        android:id="@+id/actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_s"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/space_s">
+
+        <LinearLayout
+            android:id="@+id/share"
+            style="@style/SheetAction"
+            tools:ignore="UseCompoundDrawables">
+
+            <ImageView
+                style="@style/SheetActionIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_share"/>
+
+            <TextView
+                style="@style/SheetActionLabel"
+                android:text="@string/file_share"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/save"
+            style="@style/SheetAction"
+            tools:ignore="UseCompoundDrawables">
+
+            <ImageView
+                style="@style/SheetActionIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_download"/>
+
+            <TextView
+                style="@style/SheetActionLabel"
+                android:text="@string/file_save"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/openWith"
+            style="@style/SheetAction"
+            tools:ignore="UseCompoundDrawables">
+
+            <ImageView
+                style="@style/SheetActionIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_open_in"/>
+
+            <TextView
+                style="@style/SheetActionLabel"
+                android:text="@string/file_open_with"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

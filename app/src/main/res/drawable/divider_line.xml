@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 줄과 줄 사이의 가는 선(표의 줄 등). 면 대신 선으로 나눈다. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/line"/>
+    <size android:height="@dimen/stroke"/>
+</shape>

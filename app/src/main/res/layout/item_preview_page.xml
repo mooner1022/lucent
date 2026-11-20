@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PDF의 한 쪽: 그림과 같은 모서리(radius_image). 높이는 쪽의 비율대로 코드가 정한다. 누르면 크게 보는 화면이 열린다.
+  종이는 흰색이라 밝은 테마의 시트와 구분되지 않는다. 면을 더 두지 않고 가는 윤곽선으로 쪽의 끝을 보인다.
+-->
+<com.google.android.material.imageview.ShapeableImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/page"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/space_s"
+    android:background="@color/sky_wash"
+    android:foreground="?attr/selectableItemBackground"
+    android:scaleType="fitXY"
+    android:padding="@dimen/stroke"
+    app:strokeColor="@color/line"
+    app:strokeWidth="@dimen/stroke"
+    app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>

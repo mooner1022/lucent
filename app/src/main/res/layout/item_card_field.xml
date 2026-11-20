@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:paddingVertical="@dimen/space_xs"
+    android:paddingStart="0dp"
+    android:paddingEnd="@dimen/space_s">
+
+    <TextView
+        android:id="@+id/name"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="받는 사람"/>
+
+    <TextView
+        android:id="@+id/value"
+        style="@style/Text.BodyS"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_xs"
+        tools:text="a@example.com"/>
+</LinearLayout>

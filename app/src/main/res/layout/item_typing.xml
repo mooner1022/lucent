@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/gutter"
+    android:paddingTop="@dimen/space_m"
+    android:paddingEnd="@dimen/bubble_gap">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/avatar"
+        android:layout_width="@dimen/avatar_list"
+        android:layout_height="@dimen/avatar_list"
+        android:contentDescription="@string/face_view"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_avatar_placeholder"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_s"
+        android:background="@drawable/bg_bubble_lucia"
+        android:contentDescription="@string/chat_typing"
+        android:paddingHorizontal="@dimen/space_l"
+        android:paddingVertical="@dimen/space_m">
+
+        <dev.mooner.lucent.ui.common.TypingDotsView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    </FrameLayout>
+</LinearLayout>

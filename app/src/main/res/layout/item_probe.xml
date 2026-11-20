@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 연결 확인 결과 한 줄: 아이콘(모양과 색이 결과를 말한다)과 글. -->
+<TextView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Text.Label"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:drawablePadding="@dimen/space_s"
+    android:gravity="center_vertical"
+    android:paddingVertical="@dimen/space_xs"
+    android:textColor="@color/ink"/>

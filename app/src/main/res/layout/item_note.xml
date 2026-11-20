@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  진행 안내("메일을 찾아보는 중…"): 상자 없이 작은 글자와 별 하나를 가운데에. 잇달아 온 안내는 한 줄로 합치고
+  마지막 것만 보인다. 앞의 것은 눌러서 펼친다. 루시아가 지금 그 일을 하는 중이면 별이 깜박인다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="@dimen/gutter"
+    android:paddingTop="@dimen/space_m">
+
+    <TextView
+        android:id="@+id/earlier"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/space_xs"
+        android:gravity="center_horizontal"
+        android:lineSpacingExtra="@dimen/space_xs"
+        android:visibility="gone"
+        tools:text="일정을 살펴보는 중"/>
+
+    <LinearLayout
+        android:id="@+id/line"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <dev.mooner.lucent.ui.common.SparkView
+            android:id="@+id/spark"
+            android:layout_width="@dimen/icon_s"
+            android:layout_height="@dimen/icon_s"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_sparkle"
+            app:tint="@color/sky"/>
+
+        <TextView
+            android:id="@+id/note"
+            style="@style/Text.Label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_s"
+            android:textColor="@color/ink_faint"
+            tools:text="메일함을 확인하고 있어요"/>
+
+        <TextView
+            android:id="@+id/count"
+            style="@style/Text.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_s"
+            android:visibility="gone"
+            tools:text="외 2단계"/>
+    </LinearLayout>
+</LinearLayout>

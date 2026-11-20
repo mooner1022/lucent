@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Lucent" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/sky</item>
+        <item name="colorPrimaryContainer">@color/sky_wash</item>
+        <item name="colorOnPrimaryContainer">@color/sky_deep</item>
+        <item name="colorOnPrimary">@color/on_sky</item>
+        <item name="colorSecondary">@color/sky_deep</item>
+        <item name="colorSecondaryContainer">@color/sky_wash</item>
+        <item name="colorOnSecondaryContainer">@color/sky_deep</item>
+        <item name="colorSurfaceVariant">@color/surface_alt</item>
+        <item name="colorOnSurfaceVariant">@color/ink_muted</item>
+        <item name="colorOutline">@color/ink_faint</item>
+        <item name="colorOutlineVariant">@color/line</item>
+        <item name="colorSurfaceContainerHigh">@color/popup</item>
+        <item name="colorSurfaceContainer">@color/surface</item>
+        <item name="colorOnSecondary">@color/surface</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="colorError">@color/error</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorBackgroundFloating">@color/popup</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:textColorPrimary">@color/ink</item>
+        <item name="android:textColorSecondary">@color/ink_muted</item>
+        <item name="android:fontFamily">@font/wantedsans_regular</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Lucent.Dialog</item>
+        <item name="textInputStyle">@style/Widget.Lucent.TextInput</item>
+        <item name="popupMenuStyle">@style/Widget.Lucent.PopupMenu</item>
+        <item name="android:popupMenuStyle">@style/Widget.Lucent.PopupMenu</item>
+        <item name="android:textAppearanceLargePopupMenu">@style/TextAppearance.Lucent.PopupItem</item>
+        <item name="android:textAppearanceSmallPopupMenu">@style/TextAppearance.Lucent.PopupItem</item>
+    </style>
+
+    <!--
+      바텀 시트(StarLight의 SlideBottomSheet와 같은 틀). 시트의 면과 모서리는 내용 레이아웃이 그리고(bg_sheet),
+      뒤의 어둠과 올라오는 움직임은 SheetDialog가 맡는다. 어둠은 상태 표시줄 뒤까지, 시트는 내비게이션 막대 뒤까지 닿는다.
+    -->
+    <style name="ThemeOverlay.Lucent.Sheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.Lucent.Sheet</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Lucent.None</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="enableEdgeToEdge">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Widget.Lucent.Sheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:elevation">0dp</item>
+        <item name="shapeAppearance">@null</item>
+    </style>
+
+    <style name="Animation.Lucent.None" parent="">
+        <item name="android:windowEnterAnimation">@null</item>
+        <item name="android:windowExitAnimation">@null</item>
+    </style>
+
+    <!-- 메뉴: radius_m, 항목 글은 Body. -->
+    <style name="Widget.Lucent.PopupMenu" parent="@android:style/Widget.Material.PopupMenu">
+        <item name="android:popupBackground">@drawable/bg_popup</item>
+        <item name="android:popupElevation">@dimen/elevation_float</item>
+    </style>
+
+    <style name="TextAppearance.Lucent.PopupItem" parent="@android:style/TextAppearance.Material.Widget.PopupMenu.Large">
+        <item name="android:fontFamily">@font/wantedsans_regular</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <style name="ThemeOverlay.Lucent.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/sky_deep</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Lucent.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Lucent.DialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.Lucent.DialogButton</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Lucent.Dialog</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.Lucent.Title</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.Lucent.Body</item>
+    </style>
+
+    <!-- 이미지(아바타, 첨부 사진, 미리보기)는 모서리가 모두 같다. -->
+    <style name="ShapeAppearance.Lucent.Image" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/radius_image</item>
+    </style>
+
+    <!-- 칩 안에 담긴 작은 그림. 담긴 것의 곡률은 담은 것(radius_s)에서 안쪽 여백(space_xs)을 뺀 값이다(design.md 3장). -->
+    <style name="ShapeAppearance.Lucent.ChipThumb" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/radius_xs</item>
+    </style>
+
+    <style name="ShapeAppearance.Lucent.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/radius_l</item>
+    </style>
+
+    <style name="MaterialAlertDialog.Lucent.Title" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">18sp</item>
+    </style>
+
+    <style name="MaterialAlertDialog.Lucent.Body" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:fontFamily">@font/wantedsans_regular</item>
+        <item name="android:textColor">@color/ink_muted</item>
+    </style>
+
+    <style name="Widget.Lucent.DialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textColor">@color/sky_deep</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="Widget.Lucent.TextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/sky_deep</item>
+        <item name="hintTextColor">@color/sky_deep</item>
+        <item name="boxCornerRadiusTopStart">@dimen/radius_m</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/radius_m</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/radius_m</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/radius_m</item>
+        <item name="boxStrokeWidth">@dimen/stroke</item>
+        <item name="boxStrokeWidthFocused">@dimen/stroke_emphasis</item>
+    </style>
+</resources>

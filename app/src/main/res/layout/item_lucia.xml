@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/gutter"
+    android:paddingTop="@dimen/space_xs"
+    android:paddingEnd="@dimen/bubble_gap">
+
+    <!-- 묶음의 첫 말에만 아바타가 보이고, 나머지는 같은 폭의 자리만 지킨다. -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/avatar"
+        android:layout_width="@dimen/avatar_list"
+        android:layout_height="@dimen/avatar_list"
+        android:contentDescription="@string/face_view"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_avatar_placeholder"
+        app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_s"
+        android:layout_weight="1"
+        android:gravity="start"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/source"
+            style="@style/Text.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_xs"
+            android:layout_marginBottom="@dimen/space_xs"
+            android:visibility="gone"
+            tools:text="Discord"/>
+
+        <!-- 말풍선 하나 안에 글과 파일이 들어간다. 파일은 상자 없이 줄로만 이어진다. 긴 글이면 폭을 다 쓴다. -->
+        <LinearLayout
+            android:id="@+id/bubble"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_bubble_lucia"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/space_l"
+            android:paddingVertical="@dimen/space_m">
+
+            <TextView
+                android:id="@+id/text"
+                style="@style/Text.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="오늘 3시에 회의가 있어요."/>
+
+            <LinearLayout
+                android:id="@+id/files"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"/>
+        </LinearLayout>
+
+        <!-- 스티커: 말풍선 없이 그림 한 장(docs/emotes.md). 그릴 수 없으면 아래의 작은 상자가 대신 보인다. -->
+        <ImageView
+            android:id="@+id/sticker"
+            android:layout_width="@dimen/sticker_size"
+            android:layout_height="@dimen/sticker_size"
+            android:scaleType="fitStart"
+            android:visibility="gone"
+            tools:ignore="ContentDescription"/>
+
+        <TextView
+            android:id="@+id/stickerFallback"
+            style="@style/Text.BodyS"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_chip"
+            android:gravity="center_vertical"
+            android:minHeight="@dimen/chip_height"
+            android:paddingHorizontal="@dimen/space_m"
+            android:textColor="@color/ink_muted"
+            android:visibility="gone"
+            tools:text="[스티커: 축하]"/>
+
+        <TextView
+            android:id="@+id/time"
+            style="@style/Text.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_xs"
+            android:layout_marginTop="@dimen/space_xs"
+            tools:text="오전 10:15"/>
+    </LinearLayout>
+</LinearLayout>

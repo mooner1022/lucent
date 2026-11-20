@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lucent의 알림 읽기·답장(notifications.*)을 기기에서 시험할 때 쓰는 상대 앱. 메신저처럼 답장 단추(RemoteInput)가 달린
+  알림을 띄우고, 받은 답장을 그 알림에 "나"의 말로 덧붙인다. 실제 메신저에 답장을 보내지 않고 왕복을 볼 수 있다.
+  받은 답장의 글은 로그에 남기지 않고 길이만 남긴다. 시험이 끝나면 지운다(adb uninstall dev.mooner.lucent.probe).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <application
+        android:allowBackup="false"
+        android:label="Reply Probe">
+
+        <!-- adb로 부른다: am broadcast -n dev.mooner.lucent.probe/.ProbeReceiver -a dev.mooner.lucent.probe.POST -->
+        <receiver
+            android:name=".ProbeReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP"/>
+    </application>
+</manifest>

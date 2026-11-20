@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  레이아웃에 숫자를 직접 적지 않는다(docs/design.md 3·4장). 간격은 4pt, 곡률은 네 단계다.
+  곡률: xs 4 말풍선 꼬리 / s 8 칩 / m 12 단추·입력 칸·띠·이미지 / l 16 말풍선·카드·입력창·대화상자·머리말
+  한 줄 말풍선(높이 42dp)이 알약이 되지 않는 값이다. 담긴 것의 곡률 = 담은 것의 곡률 − 안쪽 여백(입력창 16 − 4 = 단추 12).
+-->
+<resources>
+    <dimen name="space_xs">4dp</dimen>
+    <dimen name="space_s">8dp</dimen>
+    <dimen name="space_m">12dp</dimen>
+    <dimen name="space_l">16dp</dimen>
+    <dimen name="space_xl">24dp</dimen>
+    <!-- 입력창 안쪽 여백: radius_l − radius_m. 안쪽 단추의 모서리가 바깥과 평행해진다. -->
+    <dimen name="space_inset">4dp</dimen>
+
+    <dimen name="radius_xs">4dp</dimen>
+    <dimen name="radius_s">8dp</dimen>
+    <dimen name="radius_m">12dp</dimen>
+    <dimen name="radius_l">16dp</dimen>
+    <!-- 이미지(아바타, 썸네일, 첨부 사진, 미리보기)의 모서리는 모두 이 값 하나다. -->
+    <dimen name="radius_image">@dimen/radius_m</dimen>
+
+    <dimen name="gutter">@dimen/space_l</dimen>
+    <!-- 말풍선 반대쪽에 비워 두는 폭 -->
+    <dimen name="bubble_gap">48dp</dimen>
+    <!-- 본문이 넓은 화면에서 퍼지지 않도록 묶는 폭 -->
+    <dimen name="content_max_width">640dp</dimen>
+    <dimen name="image_preview_max">240dp</dimen>
+    <dimen name="image_preview_min_width">120dp</dimen>
+    <dimen name="image_preview_min_height">80dp</dimen>
+    <dimen name="file_row_min_width">200dp</dimen>
+    <dimen name="chip_text_max_width">176dp</dimen>
+    <!-- 첨부 칩 안의 작은 그림: 칩 높이 − 위아래 space_xs. 모서리는 칩의 곡률 − 안쪽 여백(8 − 4 = radius_xs). -->
+    <dimen name="chip_thumb">28dp</dimen>
+
+    <!-- 대화 줄의 아바타: 한 줄짜리 말풍선의 높이와 같다. -->
+    <dimen name="avatar_list">40dp</dimen>
+    <dimen name="avatar_hero">96dp</dimen>
+    <!-- 머리말 아바타: 초상 44dp + 둘레 고리 자리 4dp씩. -->
+    <dimen name="presence_size">52dp</dimen>
+    <dimen name="presence_inset">4dp</dimen>
+    <dimen name="presence_ring">2dp</dimen>
+
+    <dimen name="icon_s">16dp</dimen>
+    <dimen name="icon_m">20dp</dimen>
+    <dimen name="dot">8dp</dimen>
+    <dimen name="button_height">44dp</dimen>
+    <dimen name="button_min_width">72dp</dimen>
+    <dimen name="chip_height">36dp</dimen>
+    <dimen name="control">40dp</dimen>
+    <dimen name="touch_target">48dp</dimen>
+    <dimen name="row_min_height">56dp</dimen>
+    <dimen name="thumb">40dp</dimen>
+    <dimen name="header_height">64dp</dimen>
+    <dimen name="stroke">1dp</dimen>
+    <dimen name="stroke_emphasis">2dp</dimen>
+    <dimen name="elevation_float">3dp</dimen>
+
+    <!-- 바텀 시트: 손잡이, 타일, 고르는 그림의 칸. -->
+    <dimen name="sheet_handle_width">36dp</dimen>
+    <dimen name="sheet_handle_height">4dp</dimen>
+    <dimen name="sheet_tile_height">84dp</dimen>
+    <!-- 파일 미리보기: 받는 동안 비워 두는 높이. -->
+    <dimen name="preview_wait_height">160dp</dimen>
+    <!-- 파일 미리보기의 표: 한 칸이 이보다 넓어지면 그 안에서 줄을 꺾는다. -->
+    <dimen name="table_cell_max_width">240dp</dimen>
+    <dimen name="emote_cell">52dp</dimen>
+    <dimen name="emote_cell_image">36dp</dimen>
+    <dimen name="sticker_cell">112dp</dimen>
+    <dimen name="sticker_cell_image">88dp</dimen>
+    <dimen name="emote_grid_height">240dp</dimen>
+    <!-- 찾는 중에는 키보드가 함께 떠 있으므로 격자가 낮아진다. -->
+    <dimen name="emote_grid_height_compact">112dp</dimen>
+    <!-- 대화에 그리는 스티커 한 장(app-expressions.md 5.4: 160~200). -->
+    <dimen name="sticker_size">160dp</dimen>
+    <!-- 이모지만 있는 말의 이모지(4.3: 40~48). -->
+    <dimen name="emoji_jumbo">44dp</dimen>
+
+    <!-- 하늘 머리말의 달: 지름, 끝 가장자리에서 중심까지. 크게, 띠의 위와 끝으로 걸쳐 나간다(단추처럼 보이지 않게). -->
+    <dimen name="moon_size">96dp</dimen>
+    <dimen name="moon_center_from_end">44dp</dimen>
+    <!-- 머리말의 하늘빛이 그 아래 종이에 번지는 길이. -->
+    <dimen name="sky_glow_height">320dp</dimen>
+    <!-- "쓰는 중"의 별 세 개. -->
+    <dimen name="typing_width">64dp</dimen>
+    <dimen name="typing_height">20dp</dimen>
+    <dimen name="typing_star">18dp</dimen>
+    <!-- 대화 목록의 위아래 끝에서 내용이 스러지는 길이(머리말 밑, 입력창 위). -->
+    <dimen name="edge_fade">@dimen/space_xl</dimen>
+    <!-- 새 말이 들어올 때 떠오르는 거리. -->
+    <dimen name="arrive_rise">10dp</dimen>
+    <!-- 코드 블록 앞의 세로줄. -->
+    <dimen name="code_rule">2dp</dimen>
+</resources>

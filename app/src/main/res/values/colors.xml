@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  달빛 배색(docs/design.md 2장). 캐릭터에서: 은백 머리카락 → 종이 / 남색 한복 깃 → 잉크와 밤 /
+  눈·술 장식의 하늘빛 → 포인트(파스텔 하늘) / 구름 자수의 금사 → 주목.
+  역할은 넷이다: 종이(바탕), 잉크(글자), 하늘(행동), 금사(루시아가 나를 기다리는 것). 대비 비율은 문서에 적었다.
+-->
+<resources>
+    <!-- 종이 -->
+    <color name="background">#F1F3FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_alt">#E8ECF6</color>
+    <color name="line">#DDE2EE</color>
+
+    <!-- 잉크(남색) -->
+    <color name="ink">#1A2247</color>
+    <color name="ink_muted">#515B80</color>
+    <color name="ink_faint">#636C8D</color>
+
+    <!-- 하늘: 포인트. 채움에는 sky, 글자·아이콘에는 sky_deep. -->
+    <color name="sky">#8FC6F5</color>
+    <color name="on_sky">#0F2A4A</color>
+    <color name="sky_deep">#2467A6</color>
+    <color name="sky_wash">#E3F0FC</color>
+
+    <color name="bubble_user">@color/sky</color>
+    <color name="on_bubble_user">@color/on_sky</color>
+
+    <!-- 금사: 승인 대기와 주의. 실이므로 면을 칠하지 않는다(윤곽선·아이콘·글자만). -->
+    <color name="gold">#C9A256</color>
+    <color name="gold_deep">#86651A</color>
+
+    <!-- 상태: 아이콘과 글자에만 쓴다. -->
+    <color name="ok">#2C7A55</color>
+    <color name="warn">@color/gold_deep</color>
+    <color name="error">#C23A55</color>
+
+    <color name="popup">@color/surface</color>
+    <color name="scrim">#52101736</color>
+    <color name="notification_accent">#3F86BC</color>
+
+    <!--
+      하늘 머리말(SkyView). 시각에 따라 네 장면이 있고, 각 장면은 위·아래 두 색의 세로 그러데이션이다.
+      새벽·낮은 밝은 띠(남색 글자), 노을·밤은 어두운 띠(흰 글자). 어두운 테마에서는 네 장면 모두 어둡다.
+    -->
+    <color name="sky_dawn_top">#BFC6F2</color>
+    <color name="sky_dawn_bottom">#F3D6E3</color>
+    <color name="sky_day_top">#8CC1F3</color>
+    <color name="sky_day_bottom">#C4E1FA</color>
+    <color name="sky_dusk_top">#2B2F73</color>
+    <color name="sky_dusk_bottom">#6F5599</color>
+    <color name="sky_night_top">#111845</color>
+    <color name="sky_night_bottom">#2B3C8A</color>
+    <!-- 연결이 없을 때 장면 위에 덮는 안개. -->
+    <color name="sky_veil_light">#C9CEDD</color>
+    <color name="sky_veil_dark">#2A2F45</color>
+    <color name="sky_moon">#FFFDF4</color>
+    <color name="sky_moon_glow">#FFF6D8</color>
+    <color name="sky_star">#FFFFFF</color>
+    <!-- 띠 위의 글자: 테마가 아니라 띠의 밝기를 따른다. -->
+    <color name="band_ink">#1A2247</color>
+    <color name="band_ink_muted">#34426B</color>
+    <color name="band_white">#FFFFFF</color>
+    <!-- 그림을 크게 보는 화면의 바탕: 밤의 남색. 그림이 주인공이라 테마와 상관없이 어둡다. -->
+    <color name="viewer_backdrop">#0C1128</color>
+    <color name="band_white_muted">#D9DCF2</color>
+    <!-- 띠 위의 상태 점·고리: 밝은 띠에서는 깊은 톤, 어두운 띠에서는 밝은 톤. -->
+    <color name="band_sky_on_light">#2467A6</color>
+    <color name="band_sky_on_dark">#8FC6F5</color>
+    <color name="band_gold_on_light">#86651A</color>
+    <color name="band_gold_on_dark">#E6CB8F</color>
+    <color name="band_error_on_light">#C23A55</color>
+    <color name="band_error_on_dark">#FF8AA0</color>
+    <!-- 노을 장면의 지평선 빛. -->
+    <color name="sky_dusk_glow">#F0B38A</color>
+</resources>

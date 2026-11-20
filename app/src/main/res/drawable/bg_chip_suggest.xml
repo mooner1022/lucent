@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 권하는 말 칩: 윤곽선 없이 하늘 안개 면. 눌러야 하는 단추가 아니라 건네는 말로 보이게. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/sky">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/sky_wash"/>
+            <corners android:radius="@dimen/radius_s"/>
+        </shape>
+    </item>
+</ripple>

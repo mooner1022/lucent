@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  글자 스케일. 화면의 글은 아래 일곱 가지 중 하나다(크기·굵기·색이 한 벌씩 묶여 있다).
+    Hero     24 bold    빈 화면의 인사, 연결 화면의 첫 줄    ← 가장 크다
+    Title    18 bold    화면 제목, 카드 제목
+    Section  16 bold    섹션 제목
+    Body     15 regular 대화 글, 입력 글
+    BodyS    14 regular 카드 값, 설정 값
+    Label    13 medium  보조 설명, 상황 자리의 글
+    Caption  12 regular 시각, 출처, 크기 같은 곁가지 정보 ← 가장 작고 가장 옅다
+  여기에 고정폭 한 가지가 더 있다: Code 13(파일 미리보기의 글 파일. 대화의 코드 블록과 같은 글꼴·크기).
+-->
+<resources>
+    <style name="Text">
+        <item name="android:fontFamily">@font/wantedsans_regular</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="Text.Hero">
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="Text.Title">
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <style name="Text.Section">
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="Text.Body">
+        <item name="android:textSize">15sp</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <style name="Text.BodyS">
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <style name="Text.Label">
+        <item name="android:fontFamily">@font/wantedsans_medium</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/ink_muted</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <style name="Text.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/ink_faint</item>
+    </style>
+
+    <!-- 고정폭 글: 파일 미리보기의 글 파일. 대화의 코드 블록과 같은 글꼴·크기다. -->
+    <style name="Text.Code">
+        <item name="android:fontFamily">@font/jbmono_nl_regular</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:lineSpacingExtra">3dp</item>
+    </style>
+
+    <!-- 섹션 제목: 작은 네 갈래 별이 앞에 붙는다(StarLight의 AgentSectionTitle과 같은 모양). -->
+    <style name="SectionTitle" parent="Text.Section">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:drawablePadding">@dimen/space_s</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="drawableStartCompat">@drawable/ic_sparkle_small</item>
+    </style>
+
+    <!-- 섹션 설명 -->
+    <style name="SectionBody" parent="Text.Label">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/space_xs</item>
+    </style>
+
+    <style name="RowTitle" parent="Text.Body">
+        <item name="android:fontFamily">@font/wantedsans_medium</item>
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+    </style>
+
+    <style name="RowBody" parent="Text.Label">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/space_xs</item>
+        <item name="android:fontFamily">@font/wantedsans_regular</item>
+    </style>
+
+    <!-- 단추: 높이 44dp, 곡률 radius_m. 주 동작은 하늘색 채움(Primary), 그다음은 선(Secondary), 가장 약한 것은 글자만(Text). -->
+    <style name="Btn" parent="Text">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">@dimen/button_height</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minWidth">@dimen/button_min_width</item>
+        <item name="android:paddingHorizontal">@dimen/space_l</item>
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="Btn.Primary">
+        <item name="android:background">@drawable/bg_button_primary</item>
+        <item name="android:textColor">@color/on_sky</item>
+    </style>
+
+    <style name="Btn.Secondary">
+        <item name="android:background">@drawable/bg_button_secondary</item>
+        <item name="android:textColor">@color/ink</item>
+    </style>
+
+    <style name="Btn.Text">
+        <item name="android:background">@drawable/bg_button_text</item>
+        <item name="android:textColor">@color/sky_deep</item>
+        <item name="android:minWidth">@dimen/touch_target</item>
+        <item name="android:paddingHorizontal">@dimen/space_m</item>
+    </style>
+
+    <!-- 칩: 제안, 첨부. 높이 36dp, 곡률 radius_s. -->
+    <style name="Chip" parent="Text.Label">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">@dimen/chip_height</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingHorizontal">@dimen/space_m</item>
+        <item name="android:background">@drawable/bg_chip</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="IconButton">
+        <item name="android:layout_width">@dimen/touch_target</item>
+        <item name="android:layout_height">@dimen/touch_target</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:scaleType">center</item>
+    </style>
+
+    <!-- 시트의 행: 왼쪽에 아이콘과 이름, 오른쪽에 지금 값과 화살표(StarLight의 AgentSheetRow). -->
+    <style name="SheetRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">@dimen/row_min_height</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">@dimen/space_l</item>
+        <item name="android:paddingEnd">@dimen/space_m</item>
+    </style>
+
+    <!-- 시트의 타일: 아이콘 아래 이름. -->
+    <style name="SheetTile">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">@dimen/sheet_tile_height</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/bg_sheet_tile</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="SheetTileLabel" parent="Text.Label">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">@dimen/space_s</item>
+        <item name="android:textColor">@color/ink</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- 시트 아래의 할 일: 아이콘과 낱말 하나. 글자 단추(Btn.Text)와 같은 세기로, 나란히 폭을 나눠 가진다. -->
+    <style name="SheetAction">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">@dimen/button_height</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/bg_button_text</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:focusable">true</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="SheetActionIcon">
+        <item name="android:layout_width">@dimen/icon_s</item>
+        <item name="android:layout_height">@dimen/icon_s</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="tint">@color/sky_deep</item>
+    </style>
+
+    <style name="SheetActionLabel" parent="Text">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">@dimen/space_s</item>
+        <item name="android:fontFamily">@font/wantedsans_bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/sky_deep</item>
+        <item name="android:maxLines">1</item>
+    </style>
+
+    <!-- 가는 선: 면 대신 선으로 나눈다. -->
+    <style name="Hairline">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/stroke</item>
+        <item name="android:background">@color/line</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+</resources>

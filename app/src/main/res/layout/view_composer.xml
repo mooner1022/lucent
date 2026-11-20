@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  입력창. 첨부 칩은 입력창 상자 밖(위)에 놓여 상자 안에 상자가 생기지 않는다.
+  상자는 radius_l 한 덩어리이고 안쪽 단추는 radius_m이다(안쪽 여백 space_inset = 16 − 12).
+  보내기 단추는 글이나 첨부가 있을 때만 나타나고, 글 칸에 초점이 있으면 윤곽선이 하늘색으로 켜진다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/composerRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <HorizontalScrollView
+        android:id="@+id/attachmentsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/space_s"
+        android:scrollbars="none"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:id="@+id/attachments"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
+
+    <!-- 이모지 자동 완성: `:` 다음에 두 글자를 쓰면 맞는 이모지가 여기 놓인다(docs/emotes.md). -->
+    <HorizontalScrollView
+        android:id="@+id/completionScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/space_s"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/completions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
+
+    <LinearLayout
+        android:id="@+id/box"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_composer"
+        android:gravity="bottom"
+        android:orientation="horizontal"
+        android:padding="@dimen/space_inset">
+
+        <ImageButton
+            android:id="@+id/attach"
+            android:layout_width="@dimen/control"
+            android:layout_height="@dimen/control"
+            android:background="@drawable/bg_button_text"
+            android:contentDescription="@string/composer_attach"
+            android:scaleType="center"
+            android:src="@drawable/ic_add"
+            app:tint="@color/ink_muted"/>
+
+        <EditText
+            android:id="@+id/input"
+            style="@style/Text.Body"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/composer_hint"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="5"
+            android:minHeight="@dimen/control"
+            android:paddingStart="@dimen/space_s"
+            android:paddingEnd="@dimen/space_xs"
+            android:paddingVertical="@dimen/space_s"
+            android:textColorHint="@color/ink_faint"/>
+
+        <!-- 이모지·스티커 판을 키보드 자리에 연다. 열려 있으면 키보드 아이콘으로 바뀐다. 이 기능이 있는 데몬일 때만 보인다. -->
+        <ImageButton
+            android:id="@+id/emote"
+            android:layout_width="@dimen/control"
+            android:layout_height="@dimen/control"
+            android:background="@drawable/bg_button_text"
+            android:contentDescription="@string/emote_title"
+            android:scaleType="center"
+            android:src="@drawable/ic_emote"
+            android:visibility="gone"
+            app:tint="@color/ink_muted"/>
+
+        <ImageButton
+            android:id="@+id/send"
+            android:layout_width="@dimen/control"
+            android:layout_height="@dimen/control"
+            android:background="@drawable/bg_send"
+            android:contentDescription="@string/composer_send"
+            android:scaleType="center"
+            android:src="@drawable/ic_send"
+            android:visibility="gone"
+            app:tint="@color/on_sky"
+            tools:visibility="visible"/>
+    </LinearLayout>
+</LinearLayout>

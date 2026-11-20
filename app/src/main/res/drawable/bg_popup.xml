@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 메뉴: 앵커가 화면 가장자리라 창이 가장자리에 붙으므로 가장자리 여백과 그림자 자리를 인셋으로 만든다. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetBottom="@dimen/space_s"
+    android:insetLeft="@dimen/space_s"
+    android:insetRight="@dimen/space_l"
+    android:insetTop="@dimen/space_xs">
+    <shape android:shape="rectangle">
+        <solid android:color="@color/popup"/>
+        <corners android:radius="@dimen/radius_m"/>
+        <stroke android:width="@dimen/stroke" android:color="@color/line"/>
+    </shape>
+</inset>

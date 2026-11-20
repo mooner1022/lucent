@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 섹션: 이름과 설명은 페이지 위에, 행은 묶음 면 하나 안에(페이지 → 면 → 행, 두 겹). 행 사이는 가는 선. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/space_xl"
+    android:orientation="vertical"
+    android:paddingHorizontal="@dimen/gutter">
+
+    <TextView
+        android:id="@+id/sectionTitle"
+        style="@style/SectionTitle"
+        android:layout_marginStart="@dimen/space_xs"/>
+
+    <TextView
+        android:id="@+id/sectionHint"
+        style="@style/SectionBody"
+        android:layout_marginHorizontal="@dimen/space_xs"
+        android:visibility="gone"/>
+
+    <LinearLayout
+        android:id="@+id/sectionRows"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_m"
+        android:background="@drawable/bg_card"
+        android:orientation="vertical"/>
+</LinearLayout>

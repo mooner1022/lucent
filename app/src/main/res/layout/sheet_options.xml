@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  값 하나를 고르는 시트(권한 모드, 주 모델 등). 머리 → 지금 상태의 글 → 선택지 묶음 → 안내 한 줄.
+  주 모델을 바꿀 때는 선택지 자리에 한 가지 일이 놓인다(panel): 바꾸기 전에 대화를 정리할지 묻거나, 정리가 끝나기를 기다리거나,
+  정리하지 못했을 때 그래도 바꿀지 묻는다. 글이 길 수 있어 내용은 시트 안에서 구른다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/space_m">
+
+    <include
+        android:id="@+id/head"
+        layout="@layout/view_sheet_header"/>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/space_xl">
+
+            <TextView
+                android:id="@+id/message"
+                style="@style/Text.BodyS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/space_xl"
+                android:layout_marginTop="@dimen/space_s"
+                android:textColor="@color/ink_muted"
+                tools:text="권한 모드: 기본 — 위험한 도구는 승인 카드를 거쳐요."/>
+
+            <LinearLayout
+                android:id="@+id/options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/gutter"
+                android:layout_marginTop="@dimen/space_m"
+                android:background="@drawable/bg_sheet_group"
+                android:orientation="vertical"/>
+
+            <!-- 선택지 대신 놓이는 한 가지 일: 묻거나(단추 둘과 그만두기) 기다린다(고리와 그만 기다리기). -->
+            <LinearLayout
+                android:id="@+id/panel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/space_xl"
+                android:layout_marginTop="@dimen/space_m"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/panelRing"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="@dimen/space_m"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    app:indicatorColor="@color/sky_deep"
+                    app:indicatorSize="@dimen/icon_m"
+                    app:trackColor="@color/sky_wash"
+                    app:trackThickness="@dimen/stroke_emphasis"/>
+
+                <TextView
+                    android:id="@+id/panelTitle"
+                    style="@style/Text.Section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    tools:text="Opus 모델로 바꿀까요?"/>
+
+                <TextView
+                    android:id="@+id/panelBody"
+                    style="@style/Text.BodyS"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_s"
+                    android:textColor="@color/ink_muted"
+                    tools:text="바꾸기 전에 대화를 정리하면 새 모델이 다시 읽을 양이 줄어요."/>
+
+                <TextView
+                    android:id="@+id/panelPrimary"
+                    style="@style/Btn.Primary"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="@dimen/space_l"
+                    tools:text="정리하고 바꾸기"/>
+
+                <TextView
+                    android:id="@+id/panelSecondary"
+                    style="@style/Btn.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="@dimen/space_s"
+                    tools:text="바로 바꾸기"/>
+
+                <TextView
+                    android:id="@+id/panelCancel"
+                    style="@style/Btn.Text"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/space_xs"
+                    tools:text="취소"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/note"
+                style="@style/Text.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/space_xl"
+                android:layout_marginTop="@dimen/space_m"
+                android:visibility="gone"
+                tools:text="바꾸면 Discord DM에도 기록이 남아요."
+                tools:visibility="visible"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

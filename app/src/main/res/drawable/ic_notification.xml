@@ -1,0 +1,10 @@
+<!-- 알림 상태 표시줄용 단색 아이콘. 로고가 정해지면 바꾼다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,1Q12,12 23,12Q12,12 12,23Q12,12 1,12Q12,12 12,1Z"/>
+</vector>

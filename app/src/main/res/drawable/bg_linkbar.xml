@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상황 자리 · 연결 끊김: 가라앉은 면. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/line">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface_alt"/>
+            <corners android:radius="@dimen/radius_m"/>
+        </shape>
+    </item>
+</ripple>

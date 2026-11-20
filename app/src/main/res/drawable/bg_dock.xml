@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상황 자리 · 승인 대기: 대기 카드와 같은 말투(흰 면에 금사 윤곽선). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/sky_wash">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface"/>
+            <corners android:radius="@dimen/radius_m"/>
+            <stroke android:width="@dimen/stroke_emphasis" android:color="@color/gold"/>
+        </shape>
+    </item>
+</ripple>

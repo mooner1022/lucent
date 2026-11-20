@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 고르는 격자의 한 칸. 칸과 그림의 크기는 이모지냐 스티커냐에 따라 ExpressionPanel이 정한다. 그림이 아직 없으면 이름이 보인다. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/emote_cell"
+    android:background="?attr/selectableItemBackgroundBorderless"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/image"
+        android:layout_width="@dimen/emote_cell_image"
+        android:layout_height="@dimen/emote_cell_image"
+        android:layout_gravity="center"
+        android:importantForAccessibility="no"
+        android:scaleType="fitCenter"/>
+
+    <TextView
+        android:id="@+id/name"
+        style="@style/Text.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:paddingHorizontal="@dimen/space_xs"
+        android:visibility="gone"
+        tools:text="lucia_smile"/>
+</FrameLayout>

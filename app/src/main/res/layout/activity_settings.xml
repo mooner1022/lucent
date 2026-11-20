@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 설정: 페이지 → 묶음 면(섹션) → 행. 본문은 하늘 머리말 뒤까지 이어지고 위 여백은 코드가 머리말 높이로 맞춘다. -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="never">
+
+        <!-- 섹션은 SettingsActivity가 채운다. 섹션 사이는 space_xl. -->
+        <LinearLayout
+            android:id="@+id/sections"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/space_l"/>
+    </ScrollView>
+
+    <include
+        android:id="@+id/pageHeader"
+        layout="@layout/view_page_header"/>
+</FrameLayout>

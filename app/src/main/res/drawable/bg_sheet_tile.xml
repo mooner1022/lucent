@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시트의 타일: 가라앉은 면, radius_m. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/sky_wash">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface_alt"/>
+            <corners android:radius="@dimen/radius_m"/>
+        </shape>
+    </item>
+</ripple>

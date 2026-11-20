@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시트의 행 사이 가는 선. -->
+<View
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Hairline"
+    android:layout_marginHorizontal="@dimen/space_l"/>

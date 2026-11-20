@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 고르는 판의 분류 칩: 고른 것만 하늘 안개 면이 깔린다. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/sky_wash"/>
+            <corners android:radius="@dimen/radius_s"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent"/>
+            <corners android:radius="@dimen/radius_s"/>
+        </shape>
+    </item>
+</selector>

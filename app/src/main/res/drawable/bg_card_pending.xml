@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 답을 기다리는 카드만 금사 윤곽선으로 앞에 선다. 닫히면 bg_card로 돌아간다. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/surface"/>
+    <corners android:radius="@dimen/radius_l"/>
+    <stroke android:width="@dimen/stroke_emphasis" android:color="@color/gold"/>
+</shape>

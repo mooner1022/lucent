@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 루시아에게 내주는 위치(location.get). "앱을 쓰는 동안"만 받는다(뒤에서 읽는 권한은 받지 않는다). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
+    <!-- 알림 기록에 앱 이름을 적으려면 그 앱이 보여야 한다(안드로이드 11의 패키지 가시성). 홈 화면에 있는 앱만 본다. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
+        </intent>
+    </queries>
+
+    <application
+        android:name=".LucentApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Lucent"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="36">
+        <!--
+          usesCleartextTraffic: 집 안(LAN·VPN) 주소는 평문 ws/http다(사양 2.3). 어떤 주소에 평문을 허용할지는
+          AddressPolicy가 정한다: 사설·루프백·링크 로컬·CGNAT 주소와 집 안 이름만 허용하고, 그 밖은 https로만 받는다.
+        -->
+
+        <activity
+            android:name=".ui.chat.ChatActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- 다른 앱에서 글이나 파일을 루시아에게 공유한다. 서버가 받는 파일에 종류 제한이 없으므로(사양 8.4) 가리지 않는다. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.setup.SetupActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"/>
+
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"/>
+
+        <!-- 받아 둔 그림(미리보기의 그림, PDF의 쪽)을 크게 보는 화면. -->
+        <activity
+            android:name=".ui.common.ImageViewerActivity"
+            android:exported="false"/>
+
+        <!-- 휴대폰에 온 알림을 기록한다(notifications.recent). 사용자가 시스템 설정에서 알림 접근을 허용해야 붙는다. -->
+        <service
+            android:name=".tools.NotificationWatcher"
+            android:exported="false"
+            android:label="@string/notification_watcher_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".push.LucentMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <!-- 서버 푸시의 기본 알림 설정. 앱이 뒤에 있을 때 시스템이 직접 띄우는 알림에 쓰인다. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="messages"/>
+
+        <!-- 받은 파일을 다른 앱으로 열 때. 내려받은 파일을 두는 캐시 폴더만 연다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+    </application>
+</manifest>

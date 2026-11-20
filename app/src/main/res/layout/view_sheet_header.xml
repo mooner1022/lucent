@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시트의 머리: 손잡이, 닫기, 가운데 제목(별 + 이름). -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:layout_width="@dimen/sheet_handle_width"
+        android:layout_height="@dimen/sheet_handle_height"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_sheet_handle"
+        android:importantForAccessibility="no"/>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/touch_target"
+        android:layout_marginTop="@dimen/space_xs"
+        android:paddingHorizontal="@dimen/space_s">
+
+        <ImageButton
+            android:id="@+id/sheetClose"
+            style="@style/IconButton"
+            android:layout_gravity="start|center_vertical"
+            android:contentDescription="@string/sheet_close"
+            android:src="@drawable/ic_close"
+            app:tint="@color/ink_muted"/>
+
+        <TextView
+            android:id="@+id/sheetTitle"
+            style="@style/Text.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="@dimen/touch_target"
+            android:drawablePadding="@dimen/space_s"
+            android:ellipsize="middle"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            app:drawableStartCompat="@drawable/ic_sparkle_small"
+            tools:text="더하기"/>
+    </FrameLayout>
+</LinearLayout>

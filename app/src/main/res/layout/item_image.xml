@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  이미지 파일은 파일 줄이 아니라 이미지 그대로 보인다. 모서리는 모든 이미지와 같은 radius_image.
+  자리의 크기는 그림을 받은 뒤 코드가 정한다(ImageBox: image_preview_min_* ~ image_preview_max). 받기 전에는 가장 작은 자리다.
+-->
+<com.google.android.material.imageview.ShapeableImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/image"
+    android:layout_width="@dimen/image_preview_min_width"
+    android:layout_height="@dimen/image_preview_min_height"
+    android:layout_marginTop="@dimen/space_s"
+    android:background="@color/sky_wash"
+    android:foreground="?attr/selectableItemBackground"
+    android:scaleType="centerCrop"
+    app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>

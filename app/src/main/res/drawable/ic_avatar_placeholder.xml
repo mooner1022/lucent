@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  루시아의 아바타. 머리말과 대화 줄이 이 파일 하나를 쓴다(큰 초상은 ic_portrait_placeholder).
+  지금은 캐릭터 그림에서 얼굴만 가깝게 잘라 쓴다(drawable-nodpi/lucia_avatar.webp): 36dp에서도 얼굴이 읽혀야 한다.
+  바꾸려면 그 그림이나 이 파일만 바꾼다.
+  모서리는 쓰는 쪽에서 radius_image로 깎는다.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/lucia_avatar"
+    android:filter="true"/>

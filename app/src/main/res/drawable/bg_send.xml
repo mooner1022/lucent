@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 보내기 단추: 입력창(radius_l) 안의 radius_m. 글이 있을 때만 나타난다. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/scrim">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/sky"/>
+            <corners android:radius="@dimen/radius_m"/>
+        </shape>
+    </item>
+</ripple>

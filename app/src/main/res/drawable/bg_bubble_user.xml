@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 내 말: 포인트 하늘색. 꼬리 모서리는 오른쪽 아래. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/bubble_user"/>
+    <corners
+        android:bottomLeftRadius="@dimen/radius_l"
+        android:bottomRightRadius="@dimen/radius_xs"
+        android:topLeftRadius="@dimen/radius_l"
+        android:topRightRadius="@dimen/radius_l"/>
+</shape>

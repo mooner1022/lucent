@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#0C1128</color>
+    <color name="surface">#161C3C</color>
+    <color name="surface_alt">#1F2649</color>
+    <color name="line">#2A3257</color>
+
+    <color name="ink">#E7EBFA</color>
+    <color name="ink_muted">#A4AECF</color>
+    <color name="ink_faint">#8690B4</color>
+
+    <color name="sky_deep">#A5D4FA</color>
+    <color name="sky_wash">#1A3150</color>
+
+    <!-- 어두운 면에서 파스텔 채움은 너무 환하다. 같은 색상의 깊은 톤. -->
+    <color name="bubble_user">#2C5F8E</color>
+    <color name="on_bubble_user">#FFFFFF</color>
+
+    <color name="gold">#D9B870</color>
+    <color name="gold_deep">#E6CB8F</color>
+
+    <color name="ok">#7ACA9E</color>
+    <color name="error">#FF8AA0</color>
+
+    <color name="popup">#1F2649</color>
+    <color name="scrim">#8A04061A</color>
+
+    <color name="sky_dawn_top">#1A1B44</color>
+    <color name="sky_dawn_bottom">#4A3560</color>
+    <color name="sky_day_top">#173456</color>
+    <color name="sky_day_bottom">#2A5B8C</color>
+    <color name="sky_dusk_top">#17163F</color>
+    <color name="sky_dusk_bottom">#47305F</color>
+    <color name="sky_night_top">#070A20</color>
+    <color name="sky_night_bottom">#182159</color>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 닫힌 카드와 묶음 면: 흰 면에 가는 선. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/surface"/>
+    <corners android:radius="@dimen/radius_l"/>
+    <stroke android:width="@dimen/stroke" android:color="@color/line"/>
+</shape>

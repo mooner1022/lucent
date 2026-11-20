@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 두 갈래 전환(이모지 | 스티커)의 고른 쪽: 흰 면이 올라온다. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface"/>
+            <corners android:radius="@dimen/radius_s"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent"/>
+            <corners android:radius="@dimen/radius_s"/>
+        </shape>
+    </item>
+</selector>

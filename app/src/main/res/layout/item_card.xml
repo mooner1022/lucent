@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  카드(포함 두 겹: 카드 → 내용). 안에 상자를 만들지 않고 가는 선과 간격으로 나눈다.
+  위계: 머리(어조 아이콘과 상태 한 줄 → 제목) → 내용(필드 → 선 → 본문 → 꼬리말 → 단추).
+  답을 기다리는 카드는 금사 윤곽선으로 서고 내용을 줄이지 않고 다 보인다(사양 12.5).
+  닫힌 카드는 머리 한 줄로 접히고(영수증) 누르면 내용이 펼쳐진다.
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="@dimen/gutter"
+    android:paddingTop="@dimen/space_m">
+
+    <LinearLayout
+        android:id="@+id/card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_card_pending"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/head"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:minHeight="@dimen/row_min_height"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/space_l"
+            android:paddingVertical="@dimen/space_m">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/tone"
+                        android:layout_width="@dimen/icon_s"
+                        android:layout_height="@dimen/icon_s"
+                        android:layout_marginEnd="@dimen/space_s"
+                        android:importantForAccessibility="no"
+                        tools:src="@drawable/ic_sparkle"/>
+
+                    <TextView
+                        android:id="@+id/headline"
+                        style="@style/Text.Label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:text="확인해 주세요"/>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/title"
+                    style="@style/Text.Title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_xs"
+                    tools:text="메일 보내기"/>
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/chevron"
+                android:layout_width="@dimen/icon_m"
+                android:layout_height="@dimen/icon_m"
+                android:layout_marginStart="@dimen/space_s"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_chevron"
+                android:visibility="gone"
+                app:tint="@color/ink_faint"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/space_l"
+            android:paddingBottom="@dimen/space_l">
+
+            <LinearLayout
+                android:id="@+id/fields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
+
+            <View
+                android:id="@+id/bodyLine"
+                style="@style/Hairline"
+                android:layout_marginTop="@dimen/space_m"/>
+
+            <TextView
+                android:id="@+id/body"
+                style="@style/Text.BodyS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_m"
+                tools:text="안녕하세요, …"/>
+
+            <TextView
+                android:id="@+id/footer"
+                style="@style/Text.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_m"
+                tools:text="만료 11-19 15:00 · apr-1a2b"/>
+
+            <LinearLayout
+                android:id="@+id/buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_l"
+                android:gravity="end"
+                android:orientation="horizontal"/>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

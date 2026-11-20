@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  루시아의 큰 초상(빈 화면, 첫 연결 화면). 작은 아바타(ic_avatar_placeholder)보다 넓게 잘라 머리 장식까지 보인다.
+  바꾸려면 drawable-nodpi/lucia_portrait.webp나 이 파일만 바꾼다. 모서리는 쓰는 쪽에서 radius_image로 깎는다.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/lucia_portrait"
+    android:filter="true"/>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  이모지·스티커 판: 입력창의 이모지 단추를 누르면 키보드 자리에 열린다(다른 메신저와 같은 자리).
+  첫 줄은 두 갈래 전환(이모지 | 스티커)과 찾기 단추다. 찾기를 누르면 그 줄이 찾는 칸으로 바뀌고 키보드가 올라온다.
+  둘째 줄은 분류(최근, 목록의 분류들), 그 아래가 그림 격자다. 그림이 없으면 그 안내가 보인다.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/space_s"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/button_height"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/tabs"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_sheet_group"
+            android:orientation="horizontal"
+            android:padding="@dimen/space_xs">
+
+            <TextView
+                android:id="@+id/tabEmoji"
+                style="@style/Text.Label"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_segment"
+                android:gravity="center"
+                android:text="@string/emote_emoji"
+                android:textColor="@color/ink"/>
+
+            <TextView
+                android:id="@+id/tabStickers"
+                style="@style/Text.Label"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_segment"
+                android:gravity="center"
+                android:text="@string/emote_sticker"
+                android:textColor="@color/ink"/>
+        </LinearLayout>
+
+        <!-- 찾는 중: 갈래 전환 자리에 찾는 칸이 놓인다. -->
+        <EditText
+            android:id="@+id/search"
+            style="@style/Text.Body"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_sheet_group"
+            android:hint="@string/emote_search_hint_emoji"
+            android:imeOptions="actionSearch|flagNoExtractUi"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingHorizontal="@dimen/space_m"
+            android:textColorHint="@color/ink_faint"
+            android:visibility="gone"/>
+
+        <ImageButton
+            android:id="@+id/searchToggle"
+            android:layout_width="@dimen/button_height"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginStart="@dimen/space_xs"
+            android:background="@drawable/bg_button_text"
+            android:contentDescription="@string/emote_search"
+            android:scaleType="center"
+            android:src="@drawable/ic_search"
+            app:tint="@color/ink_muted"/>
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/sectionScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_s"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/sections"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+    </HorizontalScrollView>
+
+    <FrameLayout
+        android:id="@+id/gridFrame"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/emote_grid_height"
+        android:layout_marginTop="@dimen/space_s">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never"/>
+
+        <TextView
+            android:id="@+id/emoteEmpty"
+            style="@style/Text.BodyS"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:textColor="@color/ink_faint"
+            android:visibility="gone"
+            tools:text="아직 등록된 이모지가 없어요."/>
+    </FrameLayout>
+</LinearLayout>

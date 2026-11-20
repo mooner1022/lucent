@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상황 자리의 권하는 말: 누르면 그 말이 입력창에 담긴다(바로 보내지 않는다). 윤곽선 없는 하늘 안개 면. -->
+<TextView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Chip"
+    android:layout_marginEnd="@dimen/space_s"
+    android:background="@drawable/bg_chip_suggest"
+    android:textColor="@color/sky_deep"/>

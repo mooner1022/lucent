@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PLACEHOLDER 아이콘: 로고가 정해지면 drawable/ic_logo_placeholder만 바꾼다. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background_shape"/>
+    <foreground android:drawable="@drawable/ic_logo_placeholder"/>
+    <monochrome android:drawable="@drawable/ic_logo_placeholder"/>
+</adaptive-icon>

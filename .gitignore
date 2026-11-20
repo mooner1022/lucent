@@ -1,0 +1,28 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea
+.DS_Store
+/build
+/app/build
+/captures
+.externalNativeBuild
+.cxx
+/app/release
+# Firebase 설정은 프로젝트마다 다르므로 올리지 않는다(docs/push.md)
+/app/google-services.json
+/app/src/*/google-services.json
+# 시험 도구(tools/)
+__pycache__/
+*.pyc
+.venv/
+venv/
+/tools/*/build
+/tools/*/app/build
+/tools/*/local.properties
+# 서명 키와 만든 꾸러미
+*.jks
+*.keystore
+*.apk
+*.aab
