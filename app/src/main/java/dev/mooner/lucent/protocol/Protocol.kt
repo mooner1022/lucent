@@ -307,11 +307,14 @@ fun parseServerFrame(text: String): ServerFrame {
     } catch (e: Exception) {
         throw FrameParseException("깨진 JSON", e)
     }
-    val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: throw FrameParseException("type 없음")
+    // 여기서 던지는 것은 FrameParseException뿐이어야 한다. 다른 예외는 받는 쪽에서 연결을 끊는다. 그래서 값이 글·수가
+    // 아닐 수 있는 자리(객체, 배열)는 `jsonPrimitive`로 단정하지 않고 없는 것으로 본다.
+    fun flag(key: String) = (obj[key] as? JsonPrimitive)?.contentOrNull == "true"
+    val type = (obj["type"] as? JsonPrimitive)?.contentOrNull ?: throw FrameParseException("type 없음")
     fun str(key: String) = obj[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull
     fun long(key: String) = obj[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.longOrNull
     fun seq() = long("seq") ?: throw FrameParseException("$type 프레임에 seq 없음")
-    val replay = obj["replay"]?.jsonPrimitive?.contentOrNull == "true"
+    val replay = flag("replay")
     return try {
         when (type) {
             "welcome" -> ServerFrame.WelcomeFrame(LucentJson.decodeFromJsonElement<Welcome>(obj))
@@ -319,7 +322,7 @@ fun parseServerFrame(text: String): ServerFrame {
                 from = long("from") ?: 0,
                 to = long("to") ?: 0,
                 last = long("last") ?: 0,
-                truncated = obj["truncated"]?.jsonPrimitive?.contentOrNull == "true",
+                truncated = flag("truncated"),
             )
             "text" -> ServerFrame.Text(seq(), replay, str("body").orEmpty())
             "note" -> ServerFrame.Note(seq(), replay, str("body").orEmpty())

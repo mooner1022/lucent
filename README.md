@@ -13,7 +13,7 @@ Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클
 
 ```sh
 ./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk (applicationId dev.mooner.lucent.debug)
-./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림 시험(216개)
+./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림 시험(222개)
 ./gradlew :app:lintDebug
 ```
 

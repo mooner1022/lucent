@@ -101,7 +101,10 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
     private var firstLoad = true
     private var loadingOlder = false
-    private var anchor: Pair<String, Int>? = null
+    private var anchor: Anchor? = null
+
+    /** 오래된 줄을 더 부르기 전에 보던 자리: 맨 위에 보이던 줄의 열쇠와 위쪽 좌표, 그때 목록에서의 차례. */
+    private class Anchor(val key: String, val top: Int, val index: Int)
     private var lastKey: String? = null
     private var pendingSave: FileRef? = null
     private var preview: SheetDialog? = null
@@ -271,7 +274,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
             renderSoon()
         }
         binding.dock.setOnClickListener { showPending() }
-        binding.linkAction.setOnClickListener { hub.gateway.wake() }
+        binding.linkAction.setOnClickListener { hub.gateway.wake(byUser = true) }
     }
 
     private lateinit var emotePanel: ExpressionPanel
@@ -423,7 +426,9 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
         // 끝을 보던 중이면(끝으로 가는 도중이거나, 방금 실린 그림이 끝을 밀어냈어도) 새 말을 따라간다.
         val atBottom = pinnedToEnd || isNearBottom()
-        val savedAnchor = anchor
+        // 보던 자리는 위에 줄이 실제로 붙은 때에만 되돌린다. 기다리는 사이 다른 까닭(입력 중 표시 등)으로 목록이 바뀐
+        // 것에 써 버리면, 정작 오래된 줄이 붙을 때 화면이 밀린다.
+        val savedAnchor = anchor?.takeIf { a -> rows.indexOfFirst { it.key == a.key } > a.index }
         val newestKey = rows.lastOrNull { it !is Row.Typing }?.key
         val grew = newestKey != lastKey && lastKey != null
         lastKey = newestKey
@@ -438,8 +443,8 @@ class ChatActivity : AppCompatActivity(), ChatActions {
                 }
                 savedAnchor != null -> {
                     // 위에 오래된 줄이 붙어도 보던 자리가 그대로 있게 한다.
-                    val index = adapter.currentList.indexOfFirst { it.key == savedAnchor.first }
-                    if (index >= 0) (binding.messages.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(index, savedAnchor.second)
+                    val index = adapter.currentList.indexOfFirst { it.key == savedAnchor.key }
+                    if (index >= 0) (binding.messages.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(index, savedAnchor.top)
                     anchor = null
                 }
                 atBottom -> scrollToBottom(smooth = true)
@@ -833,7 +838,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         val top = (lm.findViewByPosition(first)?.top ?: binding.messages.paddingTop) - binding.messages.paddingTop
         loadingOlder = true
         lifecycleScope.launch {
-            anchor = row.key to top
+            anchor = Anchor(row.key, top, first)
             val more = hub.loadOlder()
             if (!more) anchor = null
             loadingOlder = false

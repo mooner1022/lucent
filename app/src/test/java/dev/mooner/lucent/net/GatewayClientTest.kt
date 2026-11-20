@@ -290,4 +290,70 @@ class GatewayClientTest {
         assertEquals(ErrorCodes.FAILED, answers["d-5"]!!["error"]!!.jsonObject["code"]!!.jsonPrimitive.content)
         gw.stop()
     }
+
+    @Test fun `읽을 수 없는 프레임이 와도 연결은 그대로다`() {
+        server.enqueue(script { ws ->
+            ws.send(welcome)
+            ws.send("""{"type":{"a":1},"seq":4}""")
+            ws.send("""{"type":"text","seq":4,"replay":["x"],"body":"다음 말"}""")
+        })
+        val gw = client(Config(base()))
+        gw.start()
+        assertTrue(await { gw.frames.receive() } is ServerFrame.WelcomeFrame)
+        val text = await { gw.frames.receive() } as ServerFrame.Text
+        assertEquals("다음 말", text.body)
+        assertTrue(gw.state.value is LinkState.Online)
+        assertEquals(1, server.requestCount)
+        gw.stop()
+    }
+
+    @Test fun `막힌 동안에는 사용자가 깨울 때만 바로 다시 시도한다`() {
+        server.enqueue(script { ws -> ws.send("""{"type":"error","code":"too_many_attempts","message":"x"}"""); ws.close(1000, null) })
+        server.enqueue(script { ws -> ws.send(welcome) })
+        val gw = client(Config(base()))
+        gw.start()
+        await { gw.state.first { it is LinkState.Throttled } }
+        // 앞으로 오거나 망이 바뀌어 깨우는 것은 10분 기다림을 줄이지 않는다.
+        gw.start()
+        gw.wake()
+        Thread.sleep(700)
+        assertTrue(gw.state.value is LinkState.Throttled)
+        assertEquals(1, server.requestCount)
+        gw.wake(byUser = true)
+        await { gw.state.first { it is LinkState.Online } }
+        gw.stop()
+    }
+
+    @Test fun `연결돼 있을 때 온 깨우기는 다음 기다림을 줄이지 않는다`() {
+        var open: WebSocket? = null
+        server.enqueue(script { ws -> open = ws; ws.send(welcome) })
+        val gw = client(Config(base()))
+        gw.start()
+        await { gw.state.first { it is LinkState.Online } }
+        gw.start()
+        gw.wake(byUser = true)
+        val ws = open!!
+        ws.send("""{"type":"error","code":"too_many_attempts","message":"x"}""")
+        ws.close(1000, null)
+        await { gw.state.first { it is LinkState.Throttled } }
+        Thread.sleep(700)
+        assertTrue(gw.state.value is LinkState.Throttled)
+        assertEquals(1, server.requestCount)
+        gw.stop()
+    }
+
+    @Test fun `reconnectNow는 기다리지 않고 다시 붙는다`() {
+        server.enqueue(script { ws -> ws.send(welcome) })
+        server.enqueue(script { ws -> ws.send(welcome) })
+        val gw = client(Config(base()))
+        gw.start()
+        await { gw.state.first { it is LinkState.Online } }
+        val at = System.currentTimeMillis()
+        gw.reconnectNow()
+        await { while (server.requestCount < 2) delay(20) }
+        // 백오프의 첫 기다림은 750ms보다 길다.
+        assertTrue(System.currentTimeMillis() - at < 600)
+        await { gw.state.first { it is LinkState.Online } }
+        gw.stop()
+    }
 }

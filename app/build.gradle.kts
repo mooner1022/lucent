@@ -16,6 +16,16 @@ if (firebaseVariants.isNotEmpty()) {
             firebaseVariants.none { task.name.equals("process${it}GoogleServices", ignoreCase = true) }
     }.configureEach { enabled = false }
 }
+// 설정 파일을 치운 빌드 종류에는 예전에 만든 자원이 빌드 폴더에 남는다. 그대로 두면 꾸러미에 실려, 파일이 없는데도
+// 그 Firebase 설정으로 켜진다. 빌드할 때마다 지운다.
+val dropStaleFirebaseResources by tasks.registering(Delete::class) {
+    delete(
+        listOf("debug", "release").filterNot { it in firebaseVariants }.map {
+            layout.buildDirectory.dir("generated/res/process${it.replaceFirstChar(Char::uppercase)}GoogleServices")
+        },
+    )
+}
+tasks.named("preBuild") { dependsOn(dropStaleFirebaseResources) }
 
 android {
     namespace = "dev.mooner.lucent"

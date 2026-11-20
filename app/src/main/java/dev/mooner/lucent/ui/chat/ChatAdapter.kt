@@ -375,7 +375,13 @@ class ChatAdapter(
 
     private fun picture(ctx: Context, file: FileRef): Deferred<Picture?> = pictures.getOrPut(file.id) {
         scope.async {
-            val local = runCatching { FileActions.fetch(ctx, file) }.getOrNull() ?: return@async null
+            val local = try {
+                FileActions.fetch(ctx, file)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@async null
+            }
             val size = withContext(Dispatchers.IO) { runCatching { sizeOf(local) }.getOrNull() }
             Picture(local, size?.width ?: 0, size?.height ?: 0)
         }
@@ -403,8 +409,9 @@ class ChatAdapter(
         val ctx = view.context
         val known = pictureSizes.get(file.id)
         place(view, known)
-        val waiting = picture(ctx, file)
-        val job: Job = scope.launch {
+        var shown = false
+        fun show(): Job = scope.launch {
+            val waiting = picture(ctx, file)
             val picture = waiting.await()
             if (picture == null) {
                 pictures.remove(file.id, waiting)
@@ -427,9 +434,13 @@ class ChatAdapter(
                 precision(if (box.crop) Precision.INEXACT else Precision.EXACT)
                 if (!Motion.enabled(ctx)) decoderFactory(BitmapFactoryDecoder.Factory())
             }
+            shown = true
         }
+        var job = show()
         ib.root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) = Unit
+            // 받는 도중 화면 바로 밖으로 나갔던 줄은 다시 그려지지 않은 채(목록이 쥐고 있던 뷰 그대로) 돌아온다.
+            // 그때 기다리기를 다시 시작하지 않으면 빈 자리로 남는다.
+            override fun onViewAttachedToWindow(v: View) { if (!shown && !job.isActive) job = show() }
             // 기다리기만 그만둔다. 받는 일은 이어진다.
             override fun onViewDetachedFromWindow(v: View) { job.cancel() }
         })
@@ -524,16 +535,18 @@ class ChatAdapter(
             val inflater = LayoutInflater.from(b.root.context)
             var pending: LinearLayout? = null
             for (field in card.fields) {
-                val fb = ItemCardFieldBinding.inflate(inflater, null, false)
+                // 나란한 칸은 가로 줄을 부모로 삼아 만든다. 부모 없이 만들면 칸의 너비 나눔(0dp, 무게 1)이 버려져
+                // 칸이 글 길이만큼만 차지하고 서로 붙는다.
+                val rowLayout = if (!field.inline) null else pending ?: LinearLayout(b.root.context).also {
+                    it.orientation = LinearLayout.HORIZONTAL
+                    b.fields.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                }
+                val fb = ItemCardFieldBinding.inflate(inflater, rowLayout ?: b.fields, false)
                 val name = Plain.text(field.name)
                 fb.name.text = name
                 fb.name.isVisible = name.isNotBlank()
                 markdown.render(fb.value, Plain.text(field.value))
-                if (field.inline) {
-                    val rowLayout = pending ?: LinearLayout(b.root.context).also {
-                        it.orientation = LinearLayout.HORIZONTAL
-                        b.fields.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-                    }
+                if (rowLayout != null) {
                     rowLayout.addView(fb.root)
                     pending = if (rowLayout.childCount >= INLINE_PER_ROW) null else rowLayout
                 } else {

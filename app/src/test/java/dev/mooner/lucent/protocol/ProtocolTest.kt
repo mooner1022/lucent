@@ -246,4 +246,19 @@ class ProtocolTest {
         assertFalse(ErrorCodes.endsSession(ErrorCodes.CLOSED))
         assertEquals("fallback", describeError("모르는코드", "fallback"))
     }
+
+    @Test fun `type이 글이 아니면 읽을 수 없는 프레임이고 replay가 글이 아니면 다시 받은 것이 아니다`() {
+        for (bad in listOf("""{"type":{"a":1},"seq":1}""", """{"type":["text"],"seq":1}""", """{"type":null}""", """{"seq":1}""")) {
+            try {
+                parseServerFrame(bad)
+                fail("읽혀서는 안 된다: $bad")
+            } catch (_: FrameParseException) {
+            }
+        }
+        val odd = parseServerFrame("""{"type":"text","seq":9,"body":"가","replay":{"a":1}}""") as ServerFrame.Text
+        assertEquals(9, odd.seq)
+        assertTrue(!odd.replay)
+        val listed = parseServerFrame("""{"type":"resumed","from":1,"to":2,"last":2,"truncated":[true]}""") as ServerFrame.Resumed
+        assertTrue(!listed.truncated)
+    }
 }

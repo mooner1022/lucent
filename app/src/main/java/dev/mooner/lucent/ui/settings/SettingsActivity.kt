@@ -132,7 +132,13 @@ class SettingsActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ 읽기
 
     private suspend fun loadServer() {
-        server = runCatching { hub.api.me() }.getOrNull()
+        server = try {
+            hub.api.me()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
         render()
     }
 

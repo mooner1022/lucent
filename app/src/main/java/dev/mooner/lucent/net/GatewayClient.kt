@@ -102,7 +102,12 @@ class GatewayClient(
     val frames = Channel<ServerFrame>(Channel.UNLIMITED)
 
     private var loop: Job? = null
-    private val wakeSignal = Channel<Unit>(Channel.CONFLATED)
+
+    /** 다시 시도하기를 기다리는 중이면 그 기다림. [urgentOnly]면 사용자가 깨울 때만 끝난다. */
+    private class Sleep(val urgentOnly: Boolean) { val done = CompletableDeferred<Unit>() }
+    @Volatile private var sleeping: Sleep? = null
+    /** [reconnectNow]가 끊은 연결 뒤의 기다림은 건너뛴다. */
+    private val skipNextWait = AtomicBoolean(false)
 
     @Volatile private var socket: WebSocket? = null
     private val callCounter = AtomicLong()
@@ -133,13 +138,19 @@ class GatewayClient(
 
     /** 열린 연결을 끊고 바로 다시 붙는다. 같은 `resume` 값으로 이어 받을 때 쓴다. */
     fun reconnectNow() {
-        wake()
+        skipNextWait.set(true)
+        sleeping?.done?.complete(Unit)
         socket?.cancel()
     }
 
-    /** 기다리는 중이면 백오프를 건너뛰고 지금 다시 시도한다. */
-    fun wake() {
-        wakeSignal.trySend(Unit)
+    /**
+     * 기다리는 중이면 백오프를 건너뛰고 지금 다시 시도한다. 기다리는 중이 아니면 아무 일도 없다(다음 기다림에 남지 않는다).
+     * 서버가 막아서 쉬는 10분(`too_many_attempts`)은 사용자가 깨울 때([byUser])만 줄인다. 앞으로 오거나 망이 바뀐 것으로는
+     * 줄이지 않는다.
+     */
+    fun wake(byUser: Boolean = false) {
+        val sleep = sleeping ?: return
+        if (byUser || !sleep.urgentOnly) sleep.done.complete(Unit)
     }
 
     // ------------------------------------------------------------------ 보내기
@@ -171,8 +182,8 @@ class GatewayClient(
     class ConnectionLost(message: String) : Exception(message)
 
     private fun failPending(reason: String) {
-        pending.values.forEach { it.completeExceptionally(ConnectionLost(reason)) }
-        pending.clear()
+        // 통째로 비우지 않는다. 도는 사이에 등록된 호출이 알림 없이 지워지지 않게 하나씩 꺼내 실패로 끝낸다.
+        for (id in pending.keys.toList()) pending.remove(id)?.completeExceptionally(ConnectionLost(reason))
     }
 
     // ------------------------------------------------------------------ 연결 반복
@@ -186,6 +197,7 @@ class GatewayClient(
 
     private suspend fun run() {
         var backoff = INITIAL_BACKOFF_MS
+        skipNextWait.set(false)
         while (scope.isActive) {
             val token = config.token()
             val routes = config.routes()
@@ -213,7 +225,7 @@ class GatewayClient(
                 End.Throttled -> {
                     val until = System.currentTimeMillis() + THROTTLE_WAIT_MS
                     _state.value = LinkState.Throttled(until)
-                    sleepOrWake(THROTTLE_WAIT_MS)
+                    sleepOrWake(THROTTLE_WAIT_MS, urgentOnly = true)
                     backoff = INITIAL_BACKOFF_MS
                 }
                 is End.Dropped -> {
@@ -227,9 +239,17 @@ class GatewayClient(
         }
     }
 
-    private suspend fun sleepOrWake(ms: Long) {
-        // 기다리는 동안 들어온 깨우기는 이번 한 번만 건너뛰기로 쓴다.
-        withTimeoutOrNull(ms) { wakeSignal.receive() }
+    /** [ms] 동안 기다린다. 그사이 [wake]가 오면 바로 끝난다. 기다리기 전에 온 깨우기는 세지 않는다. */
+    private suspend fun sleepOrWake(ms: Long, urgentOnly: Boolean = false) {
+        if (skipNextWait.getAndSet(false) && !urgentOnly) return
+        val sleep = Sleep(urgentOnly)
+        sleeping = sleep
+        try {
+            withTimeoutOrNull(ms) { sleep.done.await() }
+        } finally {
+            sleeping = null
+            skipNextWait.set(false)
+        }
     }
 
     private fun jitter(ms: Long): Long = (ms * (0.75 + Random.nextDouble() * 0.5)).toLong()

@@ -33,6 +33,9 @@
     <!-- 첨부 칩 안의 작은 그림: 칩 높이 − 위아래 space_xs. 모서리는 칩의 곡률 − 안쪽 여백(8 − 4 = radius_xs). -->
     <dimen name="chip_thumb">28dp</dimen>
 
+    <!-- 코드 글자의 크기. 글자 스타일(Text.Code)과 대화의 마크다운이 같이 쓴다. 시스템 글자 크기를 따른다. -->
+    <dimen name="text_code">13sp</dimen>
+
     <!-- 대화 줄의 아바타: 한 줄짜리 말풍선(42dp)보다 조금 낮다. -->
     <dimen name="avatar_list">40dp</dimen>
     <dimen name="avatar_hero">96dp</dimen>

@@ -99,6 +99,7 @@ class PhoneTools(
     }
 
     private suspend fun detail(p: ToolParams): InvokeReply = withContext(Dispatchers.IO) {
+        accessProblem()?.let { return@withContext it }
         val notice = find(p) ?: return@withContext InvokeReply.Failed(ErrorCodes.UNAVAILABLE, NOT_IN_LOG)
         InvokeReply.Ok(NoticeResults.detail(notice, canReply(notice), ZoneId.systemDefault()))
     }

@@ -169,4 +169,11 @@ class PhoneToolsTest {
         assertEquals(PhoneTools.NO_REPLY, failed(reply(other)).message)
         assertTrue(asked.isEmpty())
     }
+
+    @Test fun `알림 접근이 없으면 기록에 남은 알림도 자세히 주지 않는다`() {
+        settings.toolNotifications = true
+        val id = recordMessage()
+        val reply = failed(call("notifications.get", buildJsonObject { put("id", "n$id") }))
+        assertEquals(ErrorCodes.DENIED, reply.code)
+    }
 }

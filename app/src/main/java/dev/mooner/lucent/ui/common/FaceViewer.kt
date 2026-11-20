@@ -28,9 +28,13 @@ object FaceViewer {
      */
     @SuppressLint("ResourceType")
     private fun defaultPortrait(context: Context): File? = runCatching {
-        val file = File(context.cacheDir, "faces/lucia_portrait.webp")
+        // 앱을 새로 깔 때마다 이름이 달라진다. 앱에 든 초상이 바뀌어도 예전에 꺼내 둔 그림이 계속 열리지 않게 한다.
+        val installed = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+        val dir = File(context.cacheDir, "faces")
+        val file = File(dir, "lucia_portrait.$installed.webp")
         if (!file.isFile || file.length() == 0L) {
-            file.parentFile?.mkdirs()
+            dir.mkdirs()
+            dir.listFiles()?.forEach { it.delete() }
             context.resources.openRawResource(R.drawable.lucia_portrait).use { input -> file.outputStream().use(input::copyTo) }
         }
         file

@@ -88,7 +88,7 @@ class Markdown(private val context: Context, private val emoji: EmojiSpans? = nu
                 val factory = io.noties.markwon.SpanFactory { _, _ ->
                     CodeRuleSpan(
                         typeface = mono,
-                        textSize = dp(13).toFloat(),
+                        textSize = res.getDimension(R.dimen.text_code),
                         textColor = context.getColor(R.color.ink),
                         ruleColor = context.getColor(R.color.line),
                         ruleWidth = res.getDimensionPixelSize(R.dimen.code_rule),
@@ -106,7 +106,7 @@ class Markdown(private val context: Context, private val emoji: EmojiSpans? = nu
                     .codeBlockTypeface(mono)
                     .codeBackgroundColor(context.getColor(R.color.surface_alt))
                     .codeBlockBackgroundColor(context.getColor(R.color.surface_alt))
-                    .codeTextSize(dp(13))
+                    .codeTextSize(context.resources.getDimensionPixelSize(R.dimen.text_code))
                     .codeBlockMargin(dp(10))
                     .linkColor(context.getColor(R.color.sky_deep))
                     .isLinkUnderlined(true)

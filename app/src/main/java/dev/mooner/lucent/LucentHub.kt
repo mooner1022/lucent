@@ -483,14 +483,18 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         if (store.showMore()) return true
         if (store.meta(ChatStore.META_HISTORY_MORE) != "1") return false
         val oldest = store.meta(ChatStore.META_HISTORY_OLDEST)?.toLongOrNull() ?: return false
-        return runCatching {
+        return try {
             val page = api.history(before = oldest, limit = HISTORY_PAGE, scope = historyScope())
             store.importHistory(page.items)
             store.putMeta(ChatStore.META_HISTORY_OLDEST, page.items.minOfOrNull { it.id }?.toString() ?: oldest.toString())
             store.putMeta(ChatStore.META_HISTORY_MORE, if (page.more) "1" else "0")
             store.showMore()
             page.items.isNotEmpty()
-        }.getOrDefault(false)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
     }
 
     // ------------------------------------------------------------------ 보내기

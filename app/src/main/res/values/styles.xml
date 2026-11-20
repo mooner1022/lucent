@@ -59,7 +59,7 @@
     <!-- 고정폭 글: 파일 미리보기의 글 파일. 대화의 코드 블록과 같은 글꼴·크기다. -->
     <style name="Text.Code">
         <item name="android:fontFamily">@font/jbmono_nl_regular</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">@dimen/text_code</item>
         <item name="android:lineSpacingExtra">3dp</item>
     </style>
 
