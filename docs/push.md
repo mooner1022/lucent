@@ -4,13 +4,30 @@
 
 ## 앱 쪽
 
-1. Firebase 콘솔에서 안드로이드 앱을 등록한다. 패키지 이름은 빌드에 따라 `dev.mooner.lucent`(release) 또는 `dev.mooner.lucent.debug`(debug)다.
-2. 받은 `google-services.json`을 그 빌드 종류의 폴더에 둔다(커밋하지 않는다. `.gitignore`에 있다).
+Firebase 콘솔에서 안드로이드 앱을 등록하고 `google-services.json`을 받는다. 패키지 이름은 빌드에 따라 `dev.mooner.lucent`(release) 또는 `dev.mooner.lucent.debug`(debug)다. 그 값을 앱에 주는 길은 둘이다.
+
+### 앱에서 넣기
+
+저장소를 받은 그대로 빌드하면 이 길이다(저장소에는 Firebase 설정이 없다).
+
+- 처음 설정 화면의 "푸시 알림"에서 넣는다. 나중에는 설정 → 알림 → 푸시("Firebase 값이 없어요")나 설정 → 연결 → 주소·토큰 바꾸기로 같은 화면에 간다.
+- "google-services.json 불러오기"로 받은 파일을 고르면 이 앱(패키지 이름)의 값을 읽어 칸에 채운다. 파일에 그 패키지 이름의 앱이 없으면 받지 않고, 파일에 든 앱을 알려 준다.
+- "직접 넣기"로 세 값을 적어도 된다: 프로젝트 ID(`project_info.project_id`), 앱 ID(`client[].client_info.mobilesdk_app_id`, `1:숫자:android:…` 꼴), API 키(`client[].api_key[].current_key`). 보내는 쪽 번호(프로젝트 번호)는 앱 ID에서 읽는다.
+- 선택이다. 세 칸을 모두 비우면 푸시 없이 쓴다. 일부만 채우면 저장하지 않고 고칠 칸을 알려 준다.
+- 화면은 값의 꼴만 본다. 값이 맞는지는 연결한 뒤 설정 → 알림 → 푸시의 등록 여부로 안다.
+- 값은 기기의 앱 설정에만 둔다(앱 백업은 꺼져 있다). 연결 해제하면 함께 지운다.
+- 이미 푸시를 쓰고 있다가 값을 다른 것으로 바꾸면, 저장할 때 앱이 새로 시작한다. Firebase는 프로세스에서 한 번만 켜므로(`PushRegistrar.start`) 켜 둔 것을 갈아 끼우지 않는다.
+
+### 빌드에 넣기
+
+1. 받은 `google-services.json`을 그 빌드 종류의 폴더에 둔다(커밋하지 않는다. `.gitignore`에 있다).
    - `app/src/release/google-services.json`: release용(`dev.mooner.lucent`).
    - `app/src/debug/google-services.json`: debug용(`dev.mooner.lucent.debug`를 Firebase에 따로 등록했을 때).
    - `app/google-services.json`: 두 패키지가 모두 들어 있는 파일 하나를 함께 쓸 때.
-3. 파일이 있는 빌드 종류만 `google-services` 플러그인이 처리한다. 파일이 없는 종류는 푸시 없이 빌드된다. 저장소에는 파일이 없으므로, 받은 그대로 빌드하면 푸시 없이 돈다.
-4. 앱을 설치해 연결하면 FCM 토큰을 `PUT /v1/push`로 등록한다. 설정 → 알림 → 푸시에서 상태를 본다.
+2. 파일이 있는 빌드 종류만 `google-services` 플러그인이 처리한다. 파일이 없는 종류는 설정 없이 빌드된다. 파일을 치우면 다음 빌드부터 그 설정이 빠진다(빌드 폴더에 남은 예전 자원은 빌드가 지운다).
+3. 설정이 든 빌드는 그 설정을 쓴다. 처음 설정 화면은 칸 대신 "이 빌드에는 Firebase 설정이 들어 있어요"와 프로젝트 ID를 보인다(앱에서 넣은 값은 받지 않는다).
+
+어느 길이든, 앱을 연결하면 FCM 토큰을 `PUT /v1/push`로 등록한다. 설정 → 알림 → 푸시에서 상태를 보고 다시 등록할 수 있다.
 
 ## 서버 쪽
 

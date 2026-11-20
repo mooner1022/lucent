@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 연결 설정: 상자 없이 바탕 위에 섹션 이름 → 입력 칸. 본문은 하늘 머리말 뒤까지 이어진다. -->
+<!--
+  처음 설정(그리고 바꿀 때): 상자 없이 바탕 위에 섹션 이름 → 입력 칸. 본문은 하늘 머리말 뒤까지 이어진다.
+  앱을 쓰는 데 넣어야 하는 값은 모두 여기 있다: 서버 주소, 토큰, 푸시의 Firebase 값(선택).
+-->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -130,6 +133,108 @@
                     android:inputType="textPassword|textNoSuggestions"
                     android:singleLine="true"/>
             </com.google.android.material.textfield.TextInputLayout>
+
+            <!--
+              푸시(선택): 빌드에 Firebase 설정이 들어 있지 않으면 여기서 넣는다. 파일에서 불러오거나 직접 적는다.
+              칸은 불러왔거나 직접 넣겠다고 했을 때, 넣어 둔 값이 있을 때만 보인다.
+            -->
+            <TextView
+                android:id="@+id/pushTitle"
+                style="@style/SectionTitle"
+                android:layout_marginTop="@dimen/space_xl"
+                android:text="@string/setup_push"/>
+
+            <TextView
+                android:id="@+id/pushHelp"
+                style="@style/SectionBody"
+                android:text="@string/setup_push_help"/>
+
+            <LinearLayout
+                android:id="@+id/pushActions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_m"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/pushImport"
+                    style="@style/Btn.Secondary"
+                    android:text="@string/setup_push_import"/>
+
+                <TextView
+                    android:id="@+id/pushManual"
+                    style="@style/Btn.Text"
+                    android:layout_marginStart="@dimen/space_s"
+                    android:text="@string/setup_push_manual"/>
+            </LinearLayout>
+
+            <!-- 불러온 결과나 불러오지 못한 까닭. -->
+            <TextView
+                android:id="@+id/pushNote"
+                style="@style/Text.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_s"
+                android:visibility="gone"
+                tools:text="불러왔어요"
+                tools:visibility="visible"/>
+
+            <LinearLayout
+                android:id="@+id/pushFields"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/projectIdLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m"
+                    android:hint="@string/setup_push_project_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/projectId"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:inputType="textNoSuggestions|textVisiblePassword"
+                        android:singleLine="true"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/appIdLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m"
+                    android:hint="@string/setup_push_app_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/appId"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:inputType="textNoSuggestions|textVisiblePassword"
+                        android:singleLine="true"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/apiKeyLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_m"
+                    android:hint="@string/setup_push_key_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/apiKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:inputType="textNoSuggestions|textVisiblePassword"
+                        android:singleLine="true"/>
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
 
             <!-- 연결 확인 결과: 길마다 한 줄. 결과가 있을 때만 나타난다. -->
             <LinearLayout

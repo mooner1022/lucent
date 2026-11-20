@@ -34,6 +34,7 @@ import dev.mooner.lucent.net.AddressPolicy
 import dev.mooner.lucent.net.LinkState
 import dev.mooner.lucent.protocol.PROTOCOL_VERSION
 import dev.mooner.lucent.protocol.Welcome
+import dev.mooner.lucent.push.PushRegistrar
 import dev.mooner.lucent.tools.NotificationWatcher
 import dev.mooner.lucent.tools.ToolSpecs
 import dev.mooner.lucent.tools.ToolSwitch
@@ -215,7 +216,14 @@ class SettingsActivity : AppCompatActivity() {
             else -> getString(R.string.push_not_registered)
         }
         val canRegister = hub.push.isSupported && welcome?.push?.available == true && !pushBusy
-        row(rows, R.string.settings_push, pushText, chevron = canRegister, onClick = if (canRegister) ({ registerPush() }) else null)
+        // Firebase 값이 없으면 넣는 화면으로 간다(빌드에 설정이 든 경우는 넣을 것이 없다).
+        val canEnter = !hub.push.isSupported && hub.push.source != PushRegistrar.Source.BUILD
+        val onPush: (() -> Unit)? = when {
+            canRegister -> ({ registerPush() })
+            canEnter -> ({ editPush() })
+            else -> null
+        }
+        row(rows, R.string.settings_push, pushText, chevron = onPush != null, onClick = onPush)
 
         switchRow(rows, R.string.settings_preview, R.string.settings_preview_hint, hub.settings.previewInNotifications) {
             hub.settings.previewInNotifications = it
@@ -355,6 +363,13 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun editConnection() {
         startActivity(Intent(this, SetupActivity::class.java).putExtra(SetupActivity.EXTRA_EDIT, true))
+    }
+
+    /** 푸시에 쓸 Firebase 값은 연결 설정 화면에서 넣는다. 그 구역부터 보이게 연다. */
+    private fun editPush() {
+        startActivity(
+            Intent(this, SetupActivity::class.java).putExtra(SetupActivity.EXTRA_EDIT, true).putExtra(SetupActivity.EXTRA_PUSH, true),
+        )
     }
 
     private fun askPermission(granted: Boolean) {

@@ -10,7 +10,10 @@ import coil.decode.ImageDecoderDecoder
 class LucentApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
-        LucentHub.get(this).attach()
+        val hub = LucentHub.get(this)
+        // 설정 화면에서 넣은 Firebase 값이 있으면 그것으로 푸시를 켠다. 연결하기 전에 한다(연결하면 토큰을 등록한다).
+        hub.push.start()
+        hub.attach()
     }
 
     /** 움직이는 스티커(GIF, 움직이는 WebP)를 돌릴 수 있게 한다. 오래된 기기에서는 GIF만 움직인다. */

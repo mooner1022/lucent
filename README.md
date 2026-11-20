@@ -13,7 +13,7 @@ Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클
 
 ```sh
 ./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk (applicationId dev.mooner.lucent.debug)
-./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림 시험(222개)
+./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림·Firebase 값 시험(229개)
 ./gradlew :app:lintDebug
 ```
 
@@ -43,7 +43,7 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/fake-lucia/requirements.
 | `tools/` | 루시아에게 내주는 휴대폰 기능(사양 7.2): 목록(`ToolSpecs`), 처리(`PhoneTools`), 위치(`LocationReader`), 알림 리스너(`NotificationWatcher`)와 기록(`NotificationLog`), 알림 읽기와 답장 단추(`NoticeDigest`, `NoticeReplies`) |
 | `ui/chat` | 대화 화면. `ChatScene`이 지금 상황에서 화면이 무엇을 보일지 정하고, `ChatRows`가 저장된 줄을 화면의 줄로 바꾼다. `AddSheet`(+ 단추의 시트), `ExpressionPanel`(키보드 자리의 이모지·스티커 판), `ImageBox`(대화 속 그림의 자리) |
 | `ui/sky` | 하늘 머리말(`SkyView`: 시각의 장면, 실제 월령의 달), 아바타 고리(`PresenceAvatarView`), 설정·연결 화면의 머리말(`PageSky`) |
-| `ui/setup`, `ui/settings` | 연결 화면, 설정 화면(View + ViewBinding) |
+| `ui/setup`, `ui/settings` | 처음 설정 화면(서버 주소, 토큰, 푸시의 Firebase 값), 설정 화면(View + ViewBinding) |
 | `ui/common` | 마크다운, 이모지 제거(`Plain`), 커스텀 이모지 그리기(`EmojiSpans`), 바텀 시트(`SheetDialog`, `CommandSheet`), 파일 받기(`FileActions`)와 미리보기 시트(`FilePreview`: 그림·마크다운·글·PDF), PDF 쪽 그리기(`PdfPages`), 그림을 크게 보는 화면(`ImageViewerActivity`), 루시아의 얼굴을 눌러 프로필 그림 크게 보기(`FaceViewer`), 글 고르기 시트(`TextSheet`), 위아래 끝이 스러지는 목록(`EdgeFadeRecyclerView`), 잠깐 뜨는 안내(`Peeks`, StarLight와 같은 PeekAlert 라이브러리: `app/libs/PeekAlert-release.aar`), 답장 물음 시트(`ReplyAskSheet`), 값 입력창, 시스템 막대·여백 |
 
 ## 디자인
@@ -54,6 +54,6 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/fake-lucia/requirements.
 ## 아직 정해지지 않은 것
 
 - **로고·심볼(앱 아이콘)**: 자리표시다. `res/drawable/ic_logo_placeholder.xml`만 바꾸면 된다. 기본 아바타와 큰 초상은 캐릭터 그림에서 잘라 쓴다(`res/drawable-nodpi/lucia_avatar.webp`, `lucia_portrait.webp`). 루시아가 프로필 그림을 정하면 그 그림이 대신 보인다.
-- Firebase 설정(`google-services.json`)은 저장소에 없다. 없으면 푸시 없이 빌드되고, 쓰려면 빌드 종류의 폴더에 둔다([`docs/push.md`](docs/push.md)).
+- Firebase 설정(`google-services.json`)은 저장소에 없다. 받은 그대로 빌드한 앱에서는 처음 설정 화면(나중에는 설정 → 알림 → 푸시)에서 그 파일을 불러오거나 값을 직접 넣는다. 빌드에 넣어 두려면 빌드 종류의 폴더에 둔다([`docs/push.md`](docs/push.md)).
 - 휴대폰 기능을 앱이 닫혀 있을 때도 부르게 하기: 지금은 Lucent가 열려 있을 때(와 그 뒤 30초)만 연결돼 있다([`docs/phone-tools.md`](docs/phone-tools.md)).
 - 글 속의 움직이는 이모지(지금은 첫 장면만 보인다)와 글·스티커를 한 메시지로 보내기([`docs/emotes.md`](docs/emotes.md)).

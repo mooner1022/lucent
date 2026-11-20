@@ -255,7 +255,17 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         if (settings.isConfigured) gateway.start()
     }
 
-    /** 연결 해제: 서버의 푸시 토큰, 주소, 토큰, 기록을 모두 지운다. */
+    /**
+     * 설정 화면에서 Firebase 값을 바꾼 뒤. 값을 지워 푸시를 쓰지 않게 됐으면 서버의 등록도 지운다.
+     * false면 이 프로세스가 예전 값으로 켜져 있다: 앱을 다시 시작해야 새 값을 쓴다.
+     */
+    fun pushConfigChanged(): Boolean {
+        val started = push.start()
+        if (push.source == PushRegistrar.Source.NONE && settings.registeredPushToken != null) scope.launch { push.unregister() }
+        return started
+    }
+
+    /** 연결 해제: 서버의 푸시 토큰, 주소, 토큰, Firebase 값, 기록을 모두 지운다. */
     suspend fun disconnect() {
         runCatching { push.unregister() }
         gateway.stop()

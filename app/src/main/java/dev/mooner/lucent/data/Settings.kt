@@ -7,6 +7,7 @@ import android.util.Base64
 import androidx.core.content.edit
 import dev.mooner.lucent.protocol.LucentJson
 import dev.mooner.lucent.protocol.Welcome
+import dev.mooner.lucent.push.FirebaseConfig
 import dev.mooner.lucent.tools.ToolSwitch
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -118,6 +119,25 @@ class AppSettings(context: Context) {
         get() = prefs.getString(PUSH_TOKEN, null)
         set(value) = prefs.edit { putString(PUSH_TOKEN, value) }
 
+    /**
+     * 설정 화면에서 넣은 Firebase 값(푸시). 빌드에 설정이 들어 있지 않을 때 쓴다. 둘 다 없으면 푸시 없이 돈다(docs/push.md).
+     * 비밀은 아니지만 사용자의 프로젝트를 가리키므로 여기에만 둔다.
+     */
+    var firebase: FirebaseConfig?
+        get() {
+            val project = prefs.getString(FB_PROJECT, null) ?: return null
+            val app = prefs.getString(FB_APP, null) ?: return null
+            val key = prefs.getString(FB_KEY, null) ?: return null
+            val sender = prefs.getString(FB_SENDER, null) ?: return null
+            return FirebaseConfig(project, app, key, sender)
+        }
+        set(value) = prefs.edit {
+            putString(FB_PROJECT, value?.projectId)
+            putString(FB_APP, value?.appId)
+            putString(FB_KEY, value?.apiKey)
+            putString(FB_SENDER, value?.senderId)
+        }
+
     /** 마지막 `welcome`. 연결이 없을 때 설정 화면이 보여 주는 값이다. */
     var lastWelcome: Welcome?
         get() = prefs.getString(WELCOME, null)?.let { runCatching { LucentJson.decodeFromString(Welcome.serializer(), it) }.getOrNull() }
@@ -164,9 +184,14 @@ class AppSettings(context: Context) {
         return if (last != null && last in configured) listOf(last) + configured.filter { it != last } else configured
     }
 
-    /** 연결 해제: 주소·토큰·캐시를 모두 지운다. */
+    /** 연결 해제: 주소·토큰·Firebase 값·캐시를 모두 지운다. */
     fun clearConnection() {
         prefs.edit { clear() }
+    }
+
+    /** 바꾼 값을 지금 디스크에 쓴다. 바로 뒤에 프로세스를 끝낼 때만 부른다(평소에는 뒤에서 쓴다). */
+    fun flush() {
+        prefs.edit(commit = true) {}
     }
 
     private companion object {
@@ -185,5 +210,9 @@ class AppSettings(context: Context) {
         const val TOOL_REPLY = "tool_reply"
         const val REPLY_CONFIRM = "tool_reply_confirm"
         const val TOOL_USED = "tool_used_"
+        const val FB_PROJECT = "firebase_project_id"
+        const val FB_APP = "firebase_app_id"
+        const val FB_KEY = "firebase_api_key"
+        const val FB_SENDER = "firebase_sender_id"
     }
 }
