@@ -3,8 +3,6 @@ package dev.mooner.lucent.ui.setup
 import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
@@ -12,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.mooner.lucent.LucentHub
@@ -49,12 +48,12 @@ class SetupActivity : AppCompatActivity() {
     /** 한 길의 확인 결과. */
     private sealed interface Probe {
         val route: Route
-        class Ok(override val route: Route, val base: String, val welcome: Welcome) : Probe
+        class Ok(override val route: Route, val welcome: Welcome) : Probe
         class Rejected(override val route: Route, val reason: String) : Probe
         /** 서버가 인증을 거절했다. 토큰이 틀린 것이므로 저장하지 않는다. */
         class Unauthorized(override val route: Route, val reason: String) : Probe
         /** 서버에 닿지 못했다(집 밖에서 집 안 주소 등). */
-        class Unreachable(override val route: Route, val base: String, val reason: String) : Probe
+        class Unreachable(override val route: Route, val reason: String) : Probe
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,18 +82,13 @@ class SetupActivity : AppCompatActivity() {
         }
 
         binding.tokenLayout.setEndIconOnClickListener { pasteToken() }
-        val clearErrors = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
+        for (field in listOf(binding.home, binding.publicAddress, binding.token)) {
+            field.doAfterTextChanged {
                 binding.homeLayout.error = null
                 binding.publicLayout.error = null
                 binding.tokenLayout.error = null
             }
         }
-        binding.home.addTextChangedListener(clearErrors)
-        binding.publicAddress.addTextChangedListener(clearErrors)
-        binding.token.addTextChangedListener(clearErrors)
 
         binding.check.setOnClickListener { run(save = false) }
         binding.save.setOnClickListener { run(save = true) }
@@ -166,7 +160,7 @@ class SetupActivity : AppCompatActivity() {
         val welcome = hub.api.probe(base, token)
         when {
             welcome.role != "app" -> Probe.Rejected(route, getString(R.string.setup_wrong_role))
-            else -> Probe.Ok(route, base, welcome)
+            else -> Probe.Ok(route, welcome)
         }
     } catch (e: CancellationException) {
         throw e
@@ -174,7 +168,7 @@ class SetupActivity : AppCompatActivity() {
         if (e.status == 401 || e.status == 429) Probe.Unauthorized(route, describeError(e.code, e.message.orEmpty()))
         else Probe.Rejected(route, describeError(e.code, e.message.orEmpty()))
     } catch (e: Exception) {
-        Probe.Unreachable(route, base, GatewayClient.describeFailure(e))
+        Probe.Unreachable(route, GatewayClient.describeFailure(e))
     }
 
     private fun finishSave(probes: List<Probe>, bases: Map<Route, String>, token: String) {

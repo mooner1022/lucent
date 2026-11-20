@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.mooner.lucent.R
 import dev.mooner.lucent.databinding.DialogPromptBinding
@@ -56,11 +57,7 @@ object PromptDialog {
         binding.input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) { submit(); true } else false
         }
-        binding.input.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: android.text.Editable?) { binding.inputLayout.error = null }
-        })
+        binding.input.doAfterTextChanged { binding.inputLayout.error = null }
         dialog.show()
     }
 }

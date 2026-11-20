@@ -7,10 +7,10 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
-import androidx.core.os.CancellationSignal
 import dev.mooner.lucent.protocol.ErrorCodes
 import dev.mooner.lucent.protocol.InvokeReply
 import kotlinx.coroutines.suspendCancellableCoroutine

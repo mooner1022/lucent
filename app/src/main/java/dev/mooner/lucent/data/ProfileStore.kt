@@ -80,7 +80,7 @@ class ProfileStore(
     }
 
     private fun originals(): List<File> =
-        dir.listFiles { f -> f.isFile && ID.matches(f.name) }.orEmpty().sortedByDescending { it.lastModified() }
+        dir.listFiles { f -> f.isFile && Avatar(id = f.name).usable }.orEmpty().sortedByDescending { it.lastModified() }
 
     private fun copy(id: String, side: Int) = File(dir, "$id.$side.png")
 
@@ -207,7 +207,6 @@ class ProfileStore(
 
     companion object {
         private const val TAG = "ProfileStore"
-        private val ID = Regex("^a_[0-9a-fA-F]{24}$")
         private val RETRY_MS = listOf(3_000L, 15_000L, 60_000L)
 
         /** 그림의 한 변이 이보다 크면 읽지 않는다(사양의 상한은 2048px). */

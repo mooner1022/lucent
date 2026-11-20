@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.core.graphics.withTranslation
 import dev.mooner.lucent.R
 import kotlin.math.PI
 import kotlin.math.sin
@@ -54,11 +55,10 @@ class TypingDotsView @JvmOverloads constructor(
             val wave = if (animates) 0.5f + 0.5f * sin((t - i * STAGGER) * 2 * PI.toFloat()) else STILL
             paint.alpha = (255 * (MIN_ALPHA + (1f - MIN_ALPHA) * wave)).toInt()
             val radius = starSize / 2f * (MIN_SCALE + (1f - MIN_SCALE) * wave)
-            canvas.save()
-            canvas.translate(starSize / 2f + step * i, cy)
-            canvas.scale(radius, radius)
-            canvas.drawPath(star, paint)
-            canvas.restore()
+            canvas.withTranslation(starSize / 2f + step * i, cy) {
+                scale(radius, radius)
+                drawPath(star, paint)
+            }
         }
     }
 

@@ -11,14 +11,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
-import coil.load
 import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.doAfterTextChanged
+import coil.load
 import dev.mooner.lucent.LucentHub
 import dev.mooner.lucent.R
 import dev.mooner.lucent.data.ExpressionKind
 import dev.mooner.lucent.data.ExpressionText
-import dev.mooner.lucent.data.FileGlyph
 import dev.mooner.lucent.data.Expressions
 import dev.mooner.lucent.databinding.ItemAttachmentChipBinding
 import dev.mooner.lucent.databinding.ItemCompletionBinding
@@ -40,7 +39,7 @@ import kotlinx.coroutines.launch
  * - 보내기 단추는 글이나 첨부가 있을 때만 나타난다(비활성 회색 단추를 두지 않는다). 오프라인이면 흐려지고 눌러도 보내지 않는다.
  * - 글 칸에 초점이 있으면 상자의 윤곽선이 하늘색으로 켜진다. 첨부 칩은 상자 밖(위)에 놓인다.
  * - 안내 글(hint)은 지금 상황이 정한다: 평소, 승인 대기 중, 오프라인. 글은 오프라인에서도 쓸 수 있다.
- * - + 단추는 "더하기" 시트를 연다(사진·파일, 권한 모드). 연결이 없어도 열린다.
+ * - + 단추는 "더하기" 시트를 연다(사진·파일, 권한 모드·주 모델). 연결이 없어도 열린다.
  * - 글 칸 오른쪽의 이모지 단추는 키보드 자리에 이모지·스티커 판을 연다(다른 메신저와 같은 자리). 이모지·스티커를 다루지 않는
  *   데몬이면 단추가 없다.
  * - 글을 쓰다 `:` 다음에 두 글자를 넣으면 맞는 이모지가 상자 위에 놓인다. 고르면 `:name:`이 담긴다. 입력창 안에서는 글자
@@ -59,9 +58,9 @@ class Composer(
     private val onEmotes: () -> Unit,
     private val onSend: suspend (text: String, files: List<FileRef>) -> LucentHub.SendResult,
     /** 쓰던 글·첨부가 생기거나 없어졌을 때. 화면이 상황 자리를 다시 정한다. */
-    private val onDraftChanged: () -> Unit = {},
+    private val onDraftChanged: () -> Unit,
     /** 글 칸이 초점을 얻었을 때. 이모지·스티커 판이 열려 있었다면 화면이 닫는다. */
-    private val onInputFocused: () -> Unit = {},
+    private val onInputFocused: () -> Unit,
 ) {
     private class Attachment(
         val uri: Uri, val name: String, val size: Long,
@@ -123,7 +122,7 @@ class Composer(
     fun setContext(online: Boolean, hintRes: Int) {
         this.online = online
         binding.input.setHint(hintRes)
-                updateSend()
+        updateSend()
     }
 
     fun setText(text: String) {
@@ -174,7 +173,7 @@ class Composer(
         val found = completing?.let { hub.expressions.current.value.search(ExpressionKind.EMOJI, it.second, COMPLETION_MAX) }.orEmpty()
         binding.completions.removeAllViews()
         binding.completionScroll.isVisible = found.isNotEmpty()
-        if (completing == null || found.isEmpty()) return
+        if (found.isEmpty()) return
         val inflater = LayoutInflater.from(activity)
         for (emoji in found) {
             val chip = ItemCompletionBinding.inflate(inflater, binding.completions, false)
@@ -305,7 +304,7 @@ class Composer(
                 chip.iconSlot.isVisible = a.uploading || a.error != null
                 chip.root.updatePaddingRelative(start = activity.resources.getDimensionPixelSize(R.dimen.space_xs))
             } else {
-                chip.icon.setImageResource(FileIcons.of(FileGlyph.of(FileRef(id = "", name = a.name))))
+                chip.icon.setImageResource(FileIcons.of(FileRef(id = "", name = a.name)))
             }
             chip.progress.setProgressCompat(a.percent, false)
             if (a.error != null) {

@@ -33,7 +33,7 @@
     <!-- 첨부 칩 안의 작은 그림: 칩 높이 − 위아래 space_xs. 모서리는 칩의 곡률 − 안쪽 여백(8 − 4 = radius_xs). -->
     <dimen name="chip_thumb">28dp</dimen>
 
-    <!-- 대화 줄의 아바타: 한 줄짜리 말풍선의 높이와 같다. -->
+    <!-- 대화 줄의 아바타: 한 줄짜리 말풍선(42dp)보다 조금 낮다. -->
     <dimen name="avatar_list">40dp</dimen>
     <dimen name="avatar_hero">96dp</dimen>
     <!-- 머리말 아바타: 초상 44dp + 둘레 고리 자리 4dp씩. -->

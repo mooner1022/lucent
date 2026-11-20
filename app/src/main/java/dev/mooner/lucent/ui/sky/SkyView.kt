@@ -11,12 +11,13 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
-import android.provider.Settings
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.withClip
 import dev.mooner.lucent.R
+import dev.mooner.lucent.ui.common.Motion
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -85,9 +86,7 @@ class SkyView @JvmOverloads constructor(
     private val starColor = context.getColor(R.color.sky_star)
     private val duskGlowColor = context.getColor(R.color.sky_dusk_glow)
 
-    private val animates = runCatching {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
-    }.getOrDefault(true)
+    private val animates = Motion.enabled(context)
 
     private var phase = SkyPhase.NIGHT
     private var mood = Mood.CALM
@@ -100,7 +99,7 @@ class SkyView @JvmOverloads constructor(
             invalidate()
         }
 
-    /** 상태 표시줄 높이. 달은 그 아래 머리말 줄의 가운데 높이에 뜬다. */
+    /** 상태 표시줄 높이. 달은 그 아래 머리말 줄의 위쪽에 걸쳐 뜬다([MOON_Y]). */
     var contentTop: Int = 0
         set(value) {
             if (field == value) return
@@ -348,21 +347,17 @@ class SkyView @JvmOverloads constructor(
                 floatArrayOf(0f, 1f / HALO_RADIUS - 0.02f, 1f / HALO_RADIUS, 1f),
                 Shader.TileMode.CLAMP,
             )
-            canvas.save()
-            canvas.clipPath(bandPath)
-            canvas.drawCircle(cx, cy, haloRadius, haloPaint)
-            canvas.restore()
+            canvas.withClip(bandPath) { drawCircle(cx, cy, haloRadius, haloPaint) }
         }
 
         // 그늘진 면까지 온 달을 아주 옅게, 그 위에 빛나는 면을 그린다. 띠 밖으로 나간 부분은 자른다.
-        canvas.save()
-        canvas.clipPath(bandPath)
-        moonPaint.color = moonColor
-        moonPaint.alpha = (look.moonShade * 255).toInt()
-        canvas.drawCircle(cx, cy, r, moonPaint)
-        moonPaint.alpha = (look.moonLit * 255).toInt()
-        canvas.drawPath(litPath(cx, cy, r), moonPaint)
-        canvas.restore()
+        canvas.withClip(bandPath) {
+            moonPaint.color = moonColor
+            moonPaint.alpha = (look.moonShade * 255).toInt()
+            drawCircle(cx, cy, r, moonPaint)
+            moonPaint.alpha = (look.moonLit * 255).toInt()
+            drawPath(litPath(cx, cy, r), moonPaint)
+        }
     }
 
     /**

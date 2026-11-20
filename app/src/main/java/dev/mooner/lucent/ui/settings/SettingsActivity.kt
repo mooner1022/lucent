@@ -12,11 +12,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.isEmpty
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -34,12 +34,12 @@ import dev.mooner.lucent.net.AddressPolicy
 import dev.mooner.lucent.net.LinkState
 import dev.mooner.lucent.protocol.PROTOCOL_VERSION
 import dev.mooner.lucent.protocol.Welcome
-import dev.mooner.lucent.ui.common.CommandSheet
-import dev.mooner.lucent.ui.common.FileActions
-import dev.mooner.lucent.ui.common.Format
 import dev.mooner.lucent.tools.NotificationWatcher
 import dev.mooner.lucent.tools.ToolSpecs
 import dev.mooner.lucent.tools.ToolSwitch
+import dev.mooner.lucent.ui.common.CommandSheet
+import dev.mooner.lucent.ui.common.FileActions
+import dev.mooner.lucent.ui.common.Format
 import dev.mooner.lucent.ui.common.Peeks
 import dev.mooner.lucent.ui.common.ReplyAskSheet
 import dev.mooner.lucent.ui.common.applyPageInsets
@@ -50,7 +50,7 @@ import dev.mooner.lucent.ui.sky.PageSky
 import kotlinx.coroutines.launch
 
 /**
- * 연결 정보, 알림, 권한 모드, 기록, 앱 정보를 한곳에 모은 화면. 섹션은 StarLight 설정 화면처럼 흰 면 하나씩이다
+ * 연결과 서버, 알림, 일하는 방식(권한 모드·주 모델), 휴대폰 기능, 기록, 앱 정보를 한곳에 모은 화면. 섹션은 StarLight 설정 화면처럼 흰 면 하나씩이다
  * (페이지 → 면 → 행, 두 겹). 머리말의 하늘은 연결이 없으면 안개가 낀다.
  *
  * 값이 바뀌면(연결 상태, 서버가 알려 준 정보) [render]가 섹션을 처음부터 다시 만든다.
@@ -61,7 +61,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var sky: PageSky
     private val hub by lazy { LucentHub.get(this) }
 
-    /** `GET /v1/me`로 새로 읽은 값(번호, 서버가 보는 접속 여부, 푸시 등록). */
+    /** `GET /v1/me`로 새로 읽은 값(번호, 푸시 등록). */
     private var server: Welcome? = null
     private var pushBusy = false
 
@@ -472,7 +472,7 @@ class SettingsActivity : AppCompatActivity() {
 
     /** 행과 행 사이의 가는 선. 면을 나누는 대신 선으로 나눈다. 묶음의 첫 행 앞에는 긋지 않는다. */
     private fun divider(parent: LinearLayout) {
-        if (parent.childCount == 0) return
+        if (parent.isEmpty()) return
         val line = View(this).apply {
             setBackgroundColor(getColor(R.color.line))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO

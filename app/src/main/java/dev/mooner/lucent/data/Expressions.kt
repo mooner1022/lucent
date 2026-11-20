@@ -33,8 +33,6 @@ class Expressions(catalog: ExpressionCatalog) {
     private val byId = (emoji + stickers).associateBy { it.id }
     private val stickerByKey = stickers.associateBy { nameKey(it.name) }
 
-    val isEmpty: Boolean get() = emoji.isEmpty() && stickers.isEmpty()
-
     /** 글 속 `:name:`의 이름으로 찾는다. 대소문자를 구분한다(목록의 이름은 늘 소문자다). */
     fun emoji(name: String): Expression? = emojiByName[name]
 

@@ -30,7 +30,6 @@ android {
         versionName = libs.versions.versionName.get()
 
         androidResources.localeFilters += listOf("ko", "en")
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
 
@@ -84,7 +83,6 @@ dependencies {
     implementation(libs.firebase.messaging)
 
     testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

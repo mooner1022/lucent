@@ -22,9 +22,8 @@ import kotlinx.coroutines.launch
  * "더하기": 입력창의 + 단추가 여는 시트(StarLight의 `AddSheet`와 같은 짜임).
  *
  * 위에는 대화에 붙일 것(사진, 파일), 아래에는 루시아가 어떻게 일할지를 정하는 행이 있다. 이모지와 스티커는 여기가
- * 아니라 입력창의 이모지 단추에서 고른다([EmotePanel]). 행은 서버가
- * 알려 준 명령(`commands`, 지금은 권한 모드 하나)에서 만들므로 명령이 늘면 행도 늘어난다. 행을 누르면 값을 고르는 시트가
- * 열린다([CommandSheet]).
+ * 아니라 입력창의 이모지 단추에서 고른다([ExpressionPanel]). 행은 서버가 알려 준 명령(`commands`: 권한 모드, 주 모델)에서
+ * 만들므로 명령이 늘면 행도 늘어난다. 행을 누르면 값을 고르는 시트가 열린다([CommandSheet]).
  */
 object AddSheet {
 

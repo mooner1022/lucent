@@ -261,7 +261,7 @@ object CommandSheet {
             combine(hub.commandList, hub.commandTexts, hub.link, hub.modelSwitch) { _, _, _, _ -> }.collect { renderAll() }
         }
         // 화면이 사라질 때 닫힘 알림이 오지 않더라도 "보고 있다"는 표시가 남지 않게 한다(남으면 결과를 알리지 않게 된다).
-        val unwatch = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_DESTROY && isModel) hub.modelSwitchWatched = false }
+        val unwatch = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_DESTROY) hub.modelSwitchWatched = false }
         if (isModel) {
             hub.modelSwitchWatched = true
             activity.lifecycle.addObserver(unwatch)
@@ -288,6 +288,5 @@ object CommandSheet {
         }
     }
 
-    const val MODE_COMMAND = Commands.MODE
     private const val LOCKED_ALPHA = 0.5f
 }

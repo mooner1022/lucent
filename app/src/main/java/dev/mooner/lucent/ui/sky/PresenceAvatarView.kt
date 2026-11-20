@@ -14,12 +14,12 @@ import android.graphics.Path
 import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Shader
-import android.provider.Settings
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import dev.mooner.lucent.R
+import dev.mooner.lucent.ui.common.Motion
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -43,9 +43,7 @@ class PresenceAvatarView @JvmOverloads constructor(
     private val ringWidth = resources.getDimension(R.dimen.presence_ring)
     private val imageRadius = resources.getDimension(R.dimen.radius_image)
 
-    private val animates = runCatching {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
-    }.getOrDefault(true)
+    private val animates = Motion.enabled(context)
 
     private val portraitPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     /** 얼굴이 바뀌는 동안, 사라지는 앞의 얼굴. */

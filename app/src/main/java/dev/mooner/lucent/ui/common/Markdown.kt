@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
-import android.net.Uri
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.Spanned
@@ -12,6 +11,7 @@ import android.util.LruCache
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.mooner.lucent.R
 import dev.mooner.lucent.data.ExpressionText
@@ -67,7 +67,7 @@ class Markdown(private val context: Context, private val emoji: EmojiSpans? = nu
             override fun configureConfiguration(builder: io.noties.markwon.MarkwonConfiguration.Builder) {
                 builder.linkResolver(LinkResolver { view, link ->
                     // 눌린 링크가 선택된 채 남아 하이라이트가 사라지지 않는 것을 막는다.
-                    ((view as? TextView)?.text as? android.text.Spannable)?.let(android.text.Selection::removeSelection)
+                    ((view as? TextView)?.text as? Spannable)?.let(android.text.Selection::removeSelection)
                     confirmAndOpen(view.context, link)
                 })
             }
@@ -152,7 +152,7 @@ class Markdown(private val context: Context, private val emoji: EmojiSpans? = nu
         private const val JUMBO_KEY = "\u0000"
 
         fun confirmAndOpen(context: Context, link: String) {
-            val uri = runCatching { Uri.parse(link) }.getOrNull()
+            val uri = runCatching { link.toUri() }.getOrNull()
             val scheme = uri?.scheme?.lowercase()
             if (uri == null || (scheme != "http" && scheme != "https")) {
                 Toast.makeText(context, R.string.link_unsupported, Toast.LENGTH_SHORT).show()

@@ -11,7 +11,7 @@ sealed interface Row {
     val key: String
 
     /** 날짜가 바뀌는 곳의 구분선. */
-    data class Day(val epochDay: Long, val at: Long) : Row {
+    data class Day(val epochDay: Long) : Row {
         override val key get() = "day:$epochDay"
     }
 
@@ -81,7 +81,7 @@ fun buildRows(
     items.forEachIndexed { index, item ->
         val day = Instant.ofEpochMilli(item.at).atZone(zone).toLocalDate().toEpochDay()
         if (day != lastDay) {
-            rows += Row.Day(day, item.at)
+            rows += Row.Day(day)
             lastDay = day
         }
         val prev = items.getOrNull(index - 1)

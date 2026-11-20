@@ -15,8 +15,8 @@
   - /_dev/... 는 시험용 조작 입구다(사양에 없다): /_dev/send?kind=text&body=..., /_dev/send?kind=sticker&name=축하,
     /_dev/drop, /_dev/reset(`?empty=1`이면 기록이 없는 처음 상태), /_dev/expressions?remove=<이름>(목록에서 빼기)·?restore=1(되돌리기),
     /_dev/slow?ms=3000(파일을 그 시간에 걸쳐 천천히 보낸다, 0이면 끈다), /_dev/fail?n=1(다음 내려받기 n번을 503으로 답한다),
-    /_dev/compact?ms=5000&outcome=small&error=failed&busy=2(대화 정리 `session.compact`가 걸리는 시간·결과·오류·busy 횟수),
-    /_dev/model?set=opus(다른 곳에서 주 모델을 바꾼 것처럼).
+    /_dev/compact?ms=5000&outcome=small&error=failed&busy=2&done=0(대화 정리 `session.compact`가 걸리는 시간·결과·오류·busy 횟수),
+    /_dev/model?set=opus(다른 곳에서 주 모델을 바꾼 것처럼), /_dev/state(번호, 연결, 푸시 등록을 본다).
   - 명령은 `권한`과 `모델` 둘이다(`commands`의 `current` 포함). `--legacy-commands`를 주면 `모델`·`current`·`session.compact`가 없는
     예전 데몬처럼 군다.
   - 앱이 내준 기능(`hello.tools`, 사양 7.2)은 데몬처럼 정리해 `welcome.tools`로 돌려준다. `--scopes app_tools`를 주면 루시아가
@@ -34,7 +34,7 @@
 
 실행:  python3 server.py [--port 8790] [--scopes security_mode,app_tools] [--no-expressions] [--legacy-commands] [--no-profile]
 """
-import argparse, asyncio, base64, hashlib, io, json, os, re, struct, time, uuid, zipfile, zlib
+import argparse, asyncio, hashlib, io, json, os, re, struct, time, uuid, zipfile, zlib
 from aiohttp import web, WSMsgType
 
 TOKEN = "lucia_" + "a1" * 32
@@ -116,12 +116,15 @@ PROFILE = {"avatar": None, "files": {}}
 AVATAR_MAX = 3 * 1024 * 1024
 
 
+def chunk(t, d):
+    """PNG의 덩어리 하나(길이, 종류, 내용, CRC)."""
+    c = struct.pack(">I", len(d)) + t + d
+    return c + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+
+
 def face_png(side, sky, skin, eye=(40, 52, 80), grain=0):
     """견본 얼굴: 위에서 아래로 옅어지는 바탕, 가운데의 둥근 얼굴, 눈 둘. 줄마다 구간을 칠해 큰 그림도 빨리 만든다.
     grain을 주면 아래 비트에 잡음을 섞어 사진처럼 잘 줄지 않는 파일이 된다(파일 크기를 키운다)."""
-    def chunk(t, d):
-        c = struct.pack(">I", len(d)) + t + d
-        return c + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
     def disc(row, y, cx, cy, r, color):
         dy = y - cy
         if abs(dy) >= r: return
@@ -288,19 +291,19 @@ def push_frame(frame, numbered=True):
     return frame
 
 
-def card(ref_suffix, headline, title, tone="pending", fields=(), body="", footer=None, buttons=()):
+def card(headline, title, tone="pending", fields=(), body="", footer=None, buttons=()):
     return {"headline": headline, "title": title, "fields": list(fields), "body": body, "footer": footer, "tone": tone, "buttons": list(buttons)}
 
 
 def new_card_frame(kind):
     ref = f"{CONV}:{uuid.uuid4().hex[:12]}"
     if kind == "code":
-        c = card("", "인증 코드가 필요해요", "은행 로그인", buttons=[
+        c = card("인증 코드가 필요해요", "은행 로그인", buttons=[
             {"action": "code:1", "label": "코드 입력", "primary": True,
              "prompt": {"title": "인증 코드", "label": "6자리 코드", "placeholder": "123456", "min_len": 6, "max_len": 6}},
             {"action": "reject:1", "label": "취소", "primary": False, "prompt": None}])
     else:
-        c = card("", "확인해 주세요", "메일 보내기",
+        c = card("확인해 주세요", "메일 보내기",
                  fields=[{"name": "받는 사람", "value": "a@example.com", "inline": True}, {"name": "제목", "value": "회의록 공유", "inline": True},
                          {"name": "첨부", "value": "회의록.pdf", "inline": False}],
                  body="안녕하세요, 어제 회의록을 공유드려요.\n확인 부탁드립니다.", footer="만료 11-19 15:00 · apr-1a2b",
@@ -311,9 +314,6 @@ def new_card_frame(kind):
 
 
 def png(w=320, h=200):
-    def chunk(t, d):
-        c = struct.pack(">I", len(d)) + t + d
-        return c + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
     rows = b"".join(b"\x00" + bytes(v for x in range(w) for v in (140 + x * 60 // w, 200 - y * 40 // h, 245)) for y in range(h))
     return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
 
@@ -326,9 +326,6 @@ _capture = {}
 def capture_png(w=1080, h=12000):
     """잔글씨가 든 긴 화면 갈무리. 40화소마다 줄 번호가 작은 숫자(6×10화소)로 적혀 있어, 키워 보았을 때 또렷한지 알 수 있다."""
     if (w, h) in _capture: return _capture[(w, h)]
-    def chunk(t, d):
-        c = struct.pack(">I", len(d)) + t + d
-        return c + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
     paper, ink, rule = bytes((250, 251, 253)), bytes((26, 34, 71)), bytes((221, 226, 238))
     blank = b"\x00" + paper * w
     ruled = b"\x00" + rule * w
@@ -513,7 +510,7 @@ def send_sticker(name):
     return push_frame({"type": "sticker", "sticker": {"id": s["id"], "name": s["name"]}})
 
 
-async def reply_to(text, files, sticker=None):
+async def reply_to(text, sticker=None):
     ws = state["ws"]
     push_frame({"type": "typing"}, numbered=False)
     await asyncio.sleep(1.2)
@@ -648,7 +645,6 @@ async def ws_handler(request):
         t = f.get("type")
         if t == "ack":
             state["acked"] = max(state["acked"], f.get("seq", 0))
-            state["box"] = [x for x in state["box"] if x["seq"] > state["acked"]] if False else state["box"]
         elif t == "ping":
             await ws.send_str('{"type":"pong"}')
         elif t == "presence":
@@ -670,7 +666,7 @@ async def ws_handler(request):
             # 스티커는 `<글>\n[스티커:이름 — 설명]`으로 루시아에게 가고 기록에도 그렇게 남는다(5.2).
             add_history("user", CONV, "\n".join(x for x in (text, sticker_line(sticker) if sticker else "") if x))
             print("[ws] message", text, fids, "sticker=" + str(sid))
-            asyncio.ensure_future(reply_to(text, fids, sticker))
+            asyncio.ensure_future(reply_to(text, sticker))
         elif t == "press":
             ref = f.get("ref"); c = state["cards"].get(ref)
             print("[ws] press", ref, f.get("action"), "input=" + ("<있음>" if f.get("input") else "없음"))

@@ -27,6 +27,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isNotEmpty
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.core.widget.ImageViewCompat
@@ -41,27 +42,27 @@ import dev.mooner.lucent.R
 import dev.mooner.lucent.data.ExpressionKind
 import dev.mooner.lucent.data.ExpressionText
 import dev.mooner.lucent.data.Face
-import dev.mooner.lucent.protocol.Expression
 import dev.mooner.lucent.data.Route
 import dev.mooner.lucent.data.StoredItem
 import dev.mooner.lucent.databinding.ActivityChatBinding
 import dev.mooner.lucent.net.LinkState
 import dev.mooner.lucent.protocol.CardButton
 import dev.mooner.lucent.protocol.ErrorCodes
+import dev.mooner.lucent.protocol.Expression
 import dev.mooner.lucent.protocol.FileRef
 import dev.mooner.lucent.protocol.LucentJson
+import dev.mooner.lucent.tools.ReplyAsk
 import dev.mooner.lucent.ui.common.EmojiSpans
 import dev.mooner.lucent.ui.common.FaceViewer
 import dev.mooner.lucent.ui.common.FileActions
 import dev.mooner.lucent.ui.common.FilePreview
 import dev.mooner.lucent.ui.common.Format
 import dev.mooner.lucent.ui.common.Markdown
-import dev.mooner.lucent.ui.common.Peeks
-import dev.mooner.lucent.tools.ReplyAsk
-import dev.mooner.lucent.ui.common.ReplyAskSheet
 import dev.mooner.lucent.ui.common.Motion
+import dev.mooner.lucent.ui.common.Peeks
 import dev.mooner.lucent.ui.common.Plain
 import dev.mooner.lucent.ui.common.PromptDialog
+import dev.mooner.lucent.ui.common.ReplyAskSheet
 import dev.mooner.lucent.ui.common.SheetDialog
 import dev.mooner.lucent.ui.common.TextSheet
 import dev.mooner.lucent.ui.common.enableAppEdgeToEdge
@@ -71,8 +72,8 @@ import dev.mooner.lucent.ui.setup.SetupActivity
 import dev.mooner.lucent.ui.sky.Mood
 import dev.mooner.lucent.ui.sky.Moon
 import dev.mooner.lucent.ui.sky.SkyPhase
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
@@ -299,7 +300,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         )
     }
 
-    /** + 단추: 대화에 붙일 것(사진, 파일)과 루시아가 일하는 방식(권한 모드)을 한 시트에서 고른다. */
+    /** + 단추: 대화에 붙일 것(사진, 파일)과 루시아가 일하는 방식(권한 모드, 주 모델)을 한 시트에서 고른다. */
     private fun showAddSheet() {
         AddSheet.show(
             this, hub,
@@ -310,7 +311,8 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
     /**
      * 이모지 단추: 키보드 자리에 이모지·스티커 판을 연다. 열려 있을 때 누르면 키보드로 돌아간다.
-     * 판과 키보드는 함께 떠 있지 않는다: 판을 열면 키보드를 내리고, 키보드가 올라오면 판을 닫는다.
+     * 판과 키보드는 함께 떠 있지 않는다: 판을 열면 키보드를 내리고, 키보드가 올라오면 판을 닫는다. 판 안에서 찾는
+     * 동안만 둘이 함께 떠 있다.
      */
     private fun toggleEmotes() {
         if (emotePanel.isShown) {
@@ -451,14 +453,6 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
     private val renderLater = Runnable { render() }
 
-    /**
-     * 목록이 스크롤을 알리는 때는 배치 도중일 수 있다. 그때 보이기·숨기기를 바꾸면 다시 배치하라는 요청이 버려져
-     * 자리만 차지하고 그려지지 않는 뷰가 생기므로, 장면은 배치가 끝난 뒤에 다시 정한다.
-     */
-    /**
-     * 이모지·스티커의 목록이나 그림이 바뀌었다. 대화는 목록보다 먼저 그려질 수 있으므로(처음 연결, 새 스티커 등록),
-     * 풀어 둔 글을 버리고 보이는 줄을 다시 그린다.
-     */
     /** 루시아의 얼굴이 보이는 자리 셋(머리말, 대화 줄, 빈 화면의 큰 초상)을 같은 그림으로 맞춘다. */
     private fun showFace(face: Face?) {
         binding.avatar.setFace(face?.small)
@@ -467,6 +461,10 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         else binding.emptyAvatar.setImageResource(R.drawable.ic_portrait_placeholder)
     }
 
+    /**
+     * 이모지·스티커의 목록이나 그림이 바뀌었다. 대화는 목록보다 먼저 그려질 수 있으므로(처음 연결, 새 스티커 등록),
+     * 풀어 둔 글을 버리고 보이는 줄을 다시 그린다.
+     */
     private fun onExpressionsChanged() {
         emojiSpans.clear()
         markdown.invalidate()
@@ -477,6 +475,10 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         composer.updateCompletions()
     }
 
+    /**
+     * 목록이 스크롤을 알리는 때는 배치 도중일 수 있다. 그때 보이기·숨기기를 바꾸면 다시 배치하라는 요청이 버려져
+     * 자리만 차지하고 그려지지 않는 뷰가 생기므로, 장면은 배치가 끝난 뒤에 다시 정한다.
+     */
     private fun renderSoon() {
         binding.root.removeCallbacks(renderLater)
         binding.root.post(renderLater)
@@ -679,7 +681,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
     /** 시간대에 맞춰 권하는 말. 누르면 입력창에 담기고(바로 보내지 않는다) 키보드가 올라온다. */
     private fun fillSuggestions(phase: SkyPhase) {
-        if (suggestedFor == phase && binding.suggestions.childCount > 0) return
+        if (suggestedFor == phase && binding.suggestions.isNotEmpty()) return
         suggestedFor = phase
         val texts = resources.getStringArray(
             when (phase) {
@@ -765,7 +767,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         startActivity(Intent(this, SetupActivity::class.java).putExtra(SetupActivity.EXTRA_EDIT, true))
     }
 
-    /** 개발 빌드에서만: 하늘의 시각과 달의 위상을 인텐트로 정해 볼 수 있다(`-ei sky_minute 1290`, `-ef moon 0.2`). */
+    /** 개발 빌드에서만: 하늘의 시각과 달의 위상을 인텐트로 정해 볼 수 있다(`--ei sky_minute 1290`, `--ef moon 0.2`). */
     private fun debugMinute(): Int? =
         if (BuildConfig.DEBUG && intent.hasExtra(EXTRA_SKY_MINUTE)) intent.getIntExtra(EXTRA_SKY_MINUTE, 0) else null
 
@@ -933,7 +935,6 @@ class ChatActivity : AppCompatActivity(), ChatActions {
     }
 
     private fun copy(text: String) {
-        if (text.isBlank()) return
         val clipboard = getSystemService(android.content.ClipboardManager::class.java)
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("message", text))
         // 안드로이드 13부터는 시스템이 복사했다고 알린다.

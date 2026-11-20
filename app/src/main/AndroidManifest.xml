@@ -64,7 +64,7 @@
             android:name=".ui.settings.SettingsActivity"
             android:exported="false"/>
 
-        <!-- 받아 둔 그림(미리보기의 그림, PDF의 쪽)을 크게 보는 화면. -->
+        <!-- 받아 둔 그림(미리보기의 그림, PDF의 쪽, 루시아의 얼굴)을 크게 보는 화면. -->
         <activity
             android:name=".ui.common.ImageViewerActivity"
             android:exported="false"/>

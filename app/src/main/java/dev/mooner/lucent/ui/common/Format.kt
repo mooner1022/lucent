@@ -18,7 +18,7 @@ object Format {
     private val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
     private val dayFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)
 
-    fun time(@Suppress("UNUSED_PARAMETER") context: Context, at: Long): String =
+    fun time(at: Long): String =
         Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).format(timeFormat)
 
     fun day(epochDay: Long): String = LocalDate.ofEpochDay(epochDay).format(dayFormat)
@@ -55,6 +55,4 @@ object Format {
     fun secondsUntil(at: Long): Int = ((at - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)
 
     fun zone(): ZoneId = ZoneId.systemDefault()
-
-    fun instant(at: Long): Instant = Instant.ofEpochMilli(at)
 }

@@ -128,8 +128,9 @@ class ExpressionPanel(
 
         val cell = res.getDimensionPixelSize(if (sticker) R.dimen.sticker_cell else R.dimen.emote_cell)
         val columns = (binding.grid.width / cell).coerceAtLeast(1)
-        (binding.grid.layoutManager as? GridLayoutManager)?.takeIf { it.spanCount == columns }
-            ?: run { binding.grid.layoutManager = GridLayoutManager(binding.root.context, columns) }
+        if ((binding.grid.layoutManager as? GridLayoutManager)?.spanCount != columns) {
+            binding.grid.layoutManager = GridLayoutManager(binding.root.context, columns)
+        }
         grid.show(items, sticker, cell, res.getDimensionPixelSize(if (sticker) R.dimen.sticker_cell_image else R.dimen.emote_cell_image))
 
         binding.emoteEmpty.isVisible = items.isEmpty()

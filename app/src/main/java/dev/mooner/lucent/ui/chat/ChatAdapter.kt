@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.LruCache
-import android.util.Size
 import android.transition.AutoTransition
 import android.transition.TransitionManager
+import android.util.LruCache
+import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,10 +21,10 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.core.view.updatePaddingRelative
 import androidx.core.widget.ImageViewCompat
+import androidx.exifinterface.media.ExifInterface
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import androidx.exifinterface.media.ExifInterface
 import coil.decode.BitmapFactoryDecoder
 import coil.load
 import coil.size.Precision
@@ -228,7 +228,7 @@ class ChatAdapter(
                 Delivery.SENDING -> ctx.getString(R.string.message_sending)
                 Delivery.UNCONFIRMED -> ctx.getString(R.string.message_unconfirmed)
                 Delivery.FAILED -> ctx.getString(R.string.message_failed)
-                Delivery.SENT -> if (row.time) Format.time(ctx, item.at) else ""
+                Delivery.SENT -> if (row.time) Format.time(item.at) else ""
             }
             b.statusRow.isVisible = text.isNotEmpty()
             b.status.text = text
@@ -284,7 +284,7 @@ class ChatAdapter(
             bindFiles(b.files, item.files)
 
             b.time.isVisible = row.time
-            b.time.text = Format.time(ctx, item.at)
+            b.time.text = Format.time(item.at)
         }
     }
 

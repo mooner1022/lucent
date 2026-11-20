@@ -160,11 +160,12 @@ class ProtocolTest {
     }
 
     @Test fun `sticker는 번호 붙는 프레임, expressions는 번호 없는 프레임이다`() {
-        val sticker = parseServerFrame("""{"type":"sticker","seq":64,"sticker":{"id":"s_7a1c0e9b3f52","name":"축하"}}""") as ServerFrame.Sticker
+        val frame = parseServerFrame("""{"type":"sticker","seq":64,"sticker":{"id":"s_7a1c0e9b3f52","name":"축하"}}""")
+        assertTrue(frame is ServerFrame.Numbered)
+        val sticker = frame as ServerFrame.Sticker
         assertEquals(64, sticker.seq)
         assertEquals("s_7a1c0e9b3f52", sticker.id)
         assertEquals("축하", sticker.name)
-        assertTrue(sticker is ServerFrame.Numbered)
         val replayed = parseServerFrame("""{"type":"sticker","seq":7,"replay":true,"sticker":{"id":"s_1","name":"꾸벅"}}""") as ServerFrame.Sticker
         assertTrue(replayed.replay)
         // 번호가 없으면 읽지 못한 프레임이다(다른 번호 붙는 프레임과 같다).

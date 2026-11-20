@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   "더하기"(입력창의 + 단추): 위에는 대화에 붙일 것(사진·파일), 아래에는 루시아가 어떻게 일할지(서버가 알려 준
-  명령, 지금은 권한 모드). StarLight의 sheet_agent_add와 같은 짜임이다. 포함은 두 겹: 시트 → 타일 | 행 묶음 → 내용.
+  명령: 권한 모드, 주 모델). StarLight의 sheet_agent_add와 같은 짜임이다. 포함은 두 겹: 시트 → 타일 | 행 묶음 → 내용.
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"

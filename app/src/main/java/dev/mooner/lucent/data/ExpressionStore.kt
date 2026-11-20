@@ -2,6 +2,7 @@ package dev.mooner.lucent.data
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import dev.mooner.lucent.net.ApiException
 import dev.mooner.lucent.net.GatewayApi
 import dev.mooner.lucent.protocol.Expression
@@ -159,7 +160,7 @@ class ExpressionStore(context: Context, private val api: GatewayApi, private val
 
     fun markUsed(kind: ExpressionKind, expression: Expression) {
         val ids = (listOf(expression.id) + recentIds(kind).filter { it != expression.id }).take(RECENT_MAX)
-        prefs.edit().putString(recentKey(kind), ids.joinToString(",")).apply()
+        prefs.edit { putString(recentKey(kind), ids.joinToString(",")) }
     }
 
     private fun recentIds(kind: ExpressionKind): List<String> =
@@ -174,7 +175,7 @@ class ExpressionStore(context: Context, private val api: GatewayApi, private val
         syncLock.withLock {
             fetching.values.forEach { it.cancel() }
             dir.deleteRecursively()
-            prefs.edit().clear().apply()
+            prefs.edit { clear() }
             missing.clear()
             present.clear()
             _current.value = Expressions.EMPTY

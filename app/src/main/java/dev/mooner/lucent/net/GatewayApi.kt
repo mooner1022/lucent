@@ -1,7 +1,6 @@
 package dev.mooner.lucent.net
 
 import dev.mooner.lucent.data.AppSettings
-import dev.mooner.lucent.data.Route
 import dev.mooner.lucent.protocol.ApiError
 import dev.mooner.lucent.protocol.ExpressionCatalog
 import dev.mooner.lucent.protocol.FileRef
@@ -65,9 +64,6 @@ class GatewayApi(
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    /** 지금 붙을 수 있는 가장 가능성 높은 주소. 이미지 같은 곳에 URL을 만들 때 쓴다. */
-    fun preferredBase(): String? = settings.routes().firstOrNull()?.let(settings::base)
-
     // ------------------------------------------------------------------ 호출
 
     /** 설정에 저장하기 전의 주소·토큰을 시험해 볼 때 쓴다. */
@@ -111,7 +107,7 @@ class GatewayApi(
         size: Long,
         open: () -> InputStream,
         onProgress: (sent: Long) -> Unit = {},
-    ): FileRef = onRoutes(bulk = true) { base, token ->
+    ): FileRef = onRoutes { base, token ->
         val url = "$base/v1/files".toHttpUrl().newBuilder().addQueryParameter("name", name).build()
         val body = StreamBody(open, size, onProgress)
         execute(Request.Builder().url(url).post(body), token, bulk = true).use { response ->
@@ -122,7 +118,7 @@ class GatewayApi(
 
     /** 파일을 [dest]에 내려받는다. 이 앱의 대화로 오간 파일만 받을 수 있다. */
     suspend fun download(id: String, dest: File, onProgress: (received: Long, total: Long) -> Unit = { _, _ -> }) {
-        onRoutes(bulk = true) { base, token ->
+        onRoutes { base, token ->
             execute(Request.Builder().url("$base/v1/files/$id").get(), token, bulk = true).use { response ->
                 requireSuccess(response)
                 val total = response.requireBody().contentLength()
@@ -177,7 +173,7 @@ class GatewayApi(
 
     /** 토큰이 든 머리로 그림을 받아 [dest]에 쓴다. [maxBytes]를 넘으면 그만두고 [IOException]을 던진다. */
     private suspend fun fetchCapped(dest: File, maxBytes: Long, url: (base: String) -> HttpUrl) {
-        onRoutes(bulk = true) { base, token ->
+        onRoutes { base, token ->
             execute(Request.Builder().url(url(base)).get(), token, bulk = true).use { response ->
                 requireSuccess(response)
                 val body = response.requireBody()
@@ -202,7 +198,7 @@ class GatewayApi(
 
     // ------------------------------------------------------------------ 안쪽
 
-    private suspend fun <T> onRoutes(bulk: Boolean = false, block: suspend (base: String, token: String) -> T): T =
+    private suspend fun <T> onRoutes(block: suspend (base: String, token: String) -> T): T =
         withContext(Dispatchers.IO) { tryRoutes(block) }
 
     private suspend fun <T> tryRoutes(block: suspend (base: String, token: String) -> T): T {
@@ -281,10 +277,10 @@ class GatewayApi(
             // 앱이 죽는다.
             val input = try {
                 open()
-            } catch (e: java.io.IOException) {
+            } catch (e: IOException) {
                 throw e
             } catch (e: Exception) {
-                throw java.io.IOException("파일을 읽을 수 없어요", e)
+                throw IOException("파일을 읽을 수 없어요", e)
             }
             input.use { counting.writeAll(it.source()) }
             counting.flush()

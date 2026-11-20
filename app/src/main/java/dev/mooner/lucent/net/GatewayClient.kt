@@ -6,13 +6,14 @@ import dev.mooner.lucent.protocol.ErrorCodes
 import dev.mooner.lucent.protocol.FrameParseException
 import dev.mooner.lucent.protocol.InvokeReply
 import dev.mooner.lucent.protocol.ServerFrame
-import dev.mooner.lucent.protocol.parseServerFrame
 import dev.mooner.lucent.protocol.Welcome
+import dev.mooner.lucent.protocol.parseServerFrame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +38,7 @@ import kotlin.random.Random
 sealed interface LinkState {
     /** 연결하지 않는 중(앱이 뒤에 있거나 아직 시작 전). */
     data object Idle : LinkState
-    data class Connecting(val route: Route?) : LinkState
+    data class Connecting(val route: Route) : LinkState
     data class Online(val welcome: Welcome, val route: Route) : LinkState
 
     /** 끊겼고 [retryAt]에 다시 시도한다. */
@@ -170,8 +171,7 @@ class GatewayClient(
     class ConnectionLost(message: String) : Exception(message)
 
     private fun failPending(reason: String) {
-        val it = pending.values.iterator()
-        while (it.hasNext()) it.next().completeExceptionally(ConnectionLost(reason))
+        pending.values.forEach { it.completeExceptionally(ConnectionLost(reason)) }
         pending.clear()
     }
 
@@ -253,7 +253,7 @@ class GatewayClient(
         fun finish(end: End) { done.complete(end) }
 
         // 이 연결에서 받은 부탁들. 연결이 끝나면 함께 그만둔다.
-        val invokes = SupervisorJob(scope.coroutineContext[Job])
+        val invokes = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -289,9 +289,8 @@ class GatewayClient(
                         // 앱의 call에 대한 답은 기다리는 쪽에 건네고, 프레임 흐름에는 싣지 않는다.
                         pending.remove(frame.id)?.complete(frame)
                     }
-                    is ServerFrame.Pong -> Unit
-                    is ServerFrame.Invoke -> scope.launch(invokes) { answer(webSocket, frame) }
-                    is ServerFrame.Unknown -> Unit
+                    is ServerFrame.Invoke -> invokes.launch { answer(webSocket, frame) }
+                    is ServerFrame.Pong, is ServerFrame.Unknown -> Unit
                     else -> frames.trySend(frame)
                 }
             }

@@ -56,12 +56,12 @@
     <color name="sky_moon">#FFFDF4</color>
     <color name="sky_moon_glow">#FFF6D8</color>
     <color name="sky_star">#FFFFFF</color>
+    <!-- 그림을 크게 보는 화면의 바탕: 밤의 남색. 그림이 주인공이라 테마와 상관없이 어둡다. -->
+    <color name="viewer_backdrop">#0C1128</color>
     <!-- 띠 위의 글자: 테마가 아니라 띠의 밝기를 따른다. -->
     <color name="band_ink">#1A2247</color>
     <color name="band_ink_muted">#34426B</color>
     <color name="band_white">#FFFFFF</color>
-    <!-- 그림을 크게 보는 화면의 바탕: 밤의 남색. 그림이 주인공이라 테마와 상관없이 어둡다. -->
-    <color name="viewer_backdrop">#0C1128</color>
     <color name="band_white_muted">#D9DCF2</color>
     <!-- 띠 위의 상태 점·고리: 밝은 띠에서는 깊은 톤, 어두운 띠에서는 밝은 톤. -->
     <color name="band_sky_on_light">#2467A6</color>

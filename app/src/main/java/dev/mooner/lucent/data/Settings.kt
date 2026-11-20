@@ -56,9 +56,9 @@ internal class SecretStore {
 }
 
 /** 서버로 가는 두 길. 집 안(LAN·VPN)과 밖(공개 주소). */
-enum class Route(val key: String, val label: String) {
-    HOME("home", "집 안"),
-    PUBLIC("public", "밖");
+enum class Route(val key: String) {
+    HOME("home"),
+    PUBLIC("public");
 
     companion object {
         fun of(key: String?) = entries.firstOrNull { it.key == key }

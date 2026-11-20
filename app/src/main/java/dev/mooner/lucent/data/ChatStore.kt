@@ -75,11 +75,7 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
 
     suspend fun setLastSeq(seq: Long) = withContext(io) { putMeta(helper.writableDatabase, META_LAST_SEQ, seq.toString()) }
 
-    suspend fun meta(key: String): String? = withContext(io) {
-        helper.readableDatabase.rawQuery("SELECT value FROM meta WHERE key=?", arrayOf(key)).use { c ->
-            if (c.moveToFirst()) c.getString(0) else null
-        }
-    }
+    suspend fun meta(key: String): String? = withContext(io) { meta(helper.readableDatabase, key) }
 
     suspend fun putMeta(key: String, value: String) = withContext(io) { putMeta(helper.writableDatabase, key, value) }
 

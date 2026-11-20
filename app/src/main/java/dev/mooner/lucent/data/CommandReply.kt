@@ -1,6 +1,9 @@
 package dev.mooner.lucent.data
 
-/** 명령의 답(사람이 읽는 글)에서 지금 값을 읽는다. 구조화된 값이 따로 없어서, 확실할 때만 읽는다. */
+/**
+ * 명령의 답(사람이 읽는 글)에서 지금 값을 읽는다. 지금 값(`current`)을 알려 주지 않는 예전 데몬의 권한 모드에만 쓰고
+ * ([Commands.current]), 글이라서 확실할 때만 읽는다.
+ */
 object CommandReply {
     /**
      * [options] 가운데 [text]가 가리키는 것. 굵게 쓴(`**기본**`) 선택지가 하나뿐이면 그것, 아니면 글에 이름이 나온 선택지가
@@ -11,6 +14,6 @@ object CommandReply {
         val bold = options.filter { "**$it**" in text }
         if (bold.size == 1) return bold.single()
         if (bold.size > 1) return null
-        return options.filter { it in text }.singleOrNull()
+        return options.singleOrNull { it in text }
     }
 }

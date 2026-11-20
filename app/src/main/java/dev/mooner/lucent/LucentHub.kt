@@ -15,8 +15,8 @@ import dev.mooner.lucent.data.CompactStep
 import dev.mooner.lucent.data.Delivery
 import dev.mooner.lucent.data.ExpressionKind
 import dev.mooner.lucent.data.ExpressionStore
-import dev.mooner.lucent.data.ProfileStore
 import dev.mooner.lucent.data.Expressions
+import dev.mooner.lucent.data.ProfileStore
 import dev.mooner.lucent.data.Route
 import dev.mooner.lucent.data.StickerRef
 import dev.mooner.lucent.data.StoredItem
@@ -58,7 +58,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -133,7 +132,10 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
     val commandList: StateFlow<List<CommandInfo>> = _commandList.asStateFlow()
 
     private val _commandTexts = MutableStateFlow<Map<String, String>>(emptyMap())
-    /** 명령마다 마지막으로 받은 답의 글(6.4). 지금 값은 이 글에서 읽는다([dev.mooner.lucent.data.CommandReply]). */
+    /**
+     * 명령마다 마지막으로 받은 답의 글(6.4). 지금 값은 `commands`의 `current`로 알고, 이 글에서 읽는 것은 `current`를 주지 않는
+     * 예전 데몬의 권한 모드뿐이다([dev.mooner.lucent.data.CommandReply]).
+     */
     val commandTexts: StateFlow<Map<String, String>> = _commandTexts.asStateFlow()
 
     /** 화면이 잠깐 보일 안내 하나. [level]이 아이콘과 머무는 시간을 정한다([dev.mooner.lucent.ui.common.Peeks]). */
@@ -556,11 +558,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
 
     /** 카드 버튼 누르기. 결과는 바로 오지 않고 `card_closed`로 온다. */
     fun press(ref: String, action: String, input: String? = null): Boolean {
-        if (link.value !is LinkState.Online) {
-            notify(app.getString(R.string.send_offline), Notice.Level.WARNING)
-            return false
-        }
-        if (!gateway.send(ClientFrames.press(ref, action, input))) {
+        if (link.value !is LinkState.Online || !gateway.send(ClientFrames.press(ref, action, input))) {
             notify(app.getString(R.string.send_offline), Notice.Level.WARNING)
             return false
         }
@@ -814,7 +812,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         val result = try {
             gateway.call(method, params, timeoutMs)
         } catch (e: GatewayClient.ConnectionLost) {
-            throw CallFailed("closed", app.getString(R.string.send_offline))
+            throw CallFailed(ErrorCodes.CLOSED, app.getString(R.string.send_offline))
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
             throw CallFailed(ErrorCodes.TIMEOUT, describeError(ErrorCodes.TIMEOUT))
         }
