@@ -34,6 +34,10 @@ import dev.mooner.lucent.protocol.CompactResult
 import dev.mooner.lucent.protocol.ErrorCodes
 import dev.mooner.lucent.protocol.Expression
 import dev.mooner.lucent.protocol.FileRef
+import dev.mooner.lucent.protocol.FormValue
+import dev.mooner.lucent.protocol.Handover
+import dev.mooner.lucent.protocol.HandoverInput
+import dev.mooner.lucent.protocol.HandoverState
 import dev.mooner.lucent.protocol.InvokeReply
 import dev.mooner.lucent.protocol.LucentJson
 import dev.mooner.lucent.protocol.ServerFrame
@@ -334,6 +338,10 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         }
 
         scope.launch { push.sync(w) }
+        // 끝냈다는 답을 받지 못한 화면 넘겨받기가 남아 있으면 지금 끝낸다.
+        if (settings.handoverOpen) {
+            if (Handover.available(w)) scope.launch { finishHandover() } else if (!handoverOnScreen) settings.handoverOpen = false
+        }
         // 이모지·스티커를 다루는 데몬이면 목록의 판을 맞춘다. 필드가 없으면 그 기능이 없는 데몬이다.
         w.expressions?.let { summary -> scope.launch { expressions.sync(summary.version) } }
         // 루시아의 프로필 그림. 필드가 없으면 그 기능이 없는 데몬이라 기본 모습을 쓰고 서버에 묻지 않는다.
@@ -570,9 +578,12 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         if (!sent) store.setDelivery(localId, Delivery.FAILED)
     }
 
-    /** 카드 버튼 누르기. 결과는 바로 오지 않고 `card_closed`로 온다. */
-    fun press(ref: String, action: String, input: String? = null): Boolean {
-        if (link.value !is LinkState.Online || !gateway.send(ClientFrames.press(ref, action, input))) {
+    /**
+     * 카드 버튼 누르기. 결과는 바로 오지 않고 `card_closed`로 온다. 여러 칸을 받는 버튼의 값([inputs], 비밀번호가 들어
+     * 있을 수 있다)은 프레임에 실어 보내기만 하고 어디에도 두지 않는다.
+     */
+    fun press(ref: String, action: String, input: String? = null, inputs: Map<String, FormValue>? = null): Boolean {
+        if (link.value !is LinkState.Online || !gateway.send(ClientFrames.press(ref, action, input, inputs))) {
             notify(app.getString(R.string.send_offline), Notice.Level.WARNING)
             return false
         }
@@ -584,6 +595,53 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
             if (_pressing.value[ref] == now) _pressing.value = _pressing.value - ref
         }
         return true
+    }
+
+    // ------------------------------------------------------------------ 브라우저 화면 넘겨받기(6.7)
+
+    /** 넘겨받기 화면이 지금 앞에 있다. 그동안에는 다시 연결돼도 끝내지 않는다. */
+    @Volatile private var handoverOnScreen = false
+
+    /**
+     * 넘겨받는다(이미 하는 중이면 그대로). 브라우저가 닫혀 있었으면 데몬이 띄우느라 오래 걸릴 수 있다.
+     * 넘겨받는 동안 루시아의 모든 실행이 브라우저를 쓰지 못한다. 끝내는 일은 화면이 아니라 허브가 쥔다([endHandover]):
+     * 화면이 사라지거나 앱이 뒤로 가 연결이 닫혀도 끝냈다는 답을 받을 때까지 다시 해 본다.
+     */
+    suspend fun startHandover(): HandoverState {
+        handoverOnScreen = true
+        settings.handoverOpen = true
+        return LucentJson.decodeFromJsonElement(HandoverState.serializer(), call(Handover.START, null, HANDOVER_START_TIMEOUT_MS))
+    }
+
+    suspend fun handoverState(): HandoverState =
+        LucentJson.decodeFromJsonElement(HandoverState.serializer(), call(Handover.STATE, null))
+
+    /** 넘겨받은 화면에 입력 하나를 보낸다. 넣은 글은 프레임에 실어 보내기만 한다. */
+    suspend fun handoverInput(tab: String, input: HandoverInput) {
+        call(Handover.INPUT, Handover.params(tab, input))
+    }
+
+    /** 넘겨받기 화면을 떠났다. 데몬에 끝낸다고 알린다. 지금 알리지 못하면 다음에 연결될 때 알린다. */
+    fun endHandover() {
+        handoverOnScreen = false
+        scope.launch { finishHandover() }
+    }
+
+    /** 데몬이 먼저 끝냈다(`not_active`): 더 알릴 것이 없다. */
+    fun handoverEnded() {
+        handoverOnScreen = false
+        settings.handoverOpen = false
+    }
+
+    private suspend fun finishHandover() {
+        if (handoverOnScreen || !settings.handoverOpen) return
+        try {
+            call(Handover.END, null)
+            settings.handoverOpen = false
+        } catch (e: CallFailed) {
+            // 연결이 없거나 답이 늦었으면 다음 연결 때 다시 해 본다. 서버가 거절했으면(범위를 껐다 등) 더 할 수 없다.
+            if (e.code != ErrorCodes.CLOSED && e.code != ErrorCodes.TIMEOUT) settings.handoverOpen = false
+        }
     }
 
     // ------------------------------------------------------------------ 명령(6.3, 6.4)
@@ -849,6 +907,8 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         private const val GAP_PAGES = 3
         private const val GAP_OVERLAP_MS = 2 * 60_000L
         private const val CALL_TIMEOUT_MS = 15_000L
+        /** 브라우저를 새로 띄워야 하면 오래 걸린다. */
+        private const val HANDOVER_START_TIMEOUT_MS = 60_000L
         private const val METHOD_COMPACT = "session.compact"
         /** 데몬은 길게는 630초(운영 설정)를 기다린 뒤 `timeout`으로 답한다. 앱은 그보다 조금 더 기다린다. */
         private const val COMPACT_TIMEOUT_MS = 660_000L

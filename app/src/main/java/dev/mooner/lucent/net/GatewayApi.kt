@@ -171,6 +171,33 @@ class GatewayApi(
         fetchCapped(dest, maxBytes) { base -> "$base/v1/profile/avatar".toHttpUrl().newBuilder().addPathSegment(id).build() }
     }
 
+    // ------------------------------------------------------------------ 브라우저 화면 넘겨받기(사양 8.9)
+
+    /**
+     * 넘겨받은 브라우저의 화면 한 장(JPEG)을 메모리로 받는다(`GET /v1/browser/handover/frame/{tab}`). 화면에는 사용자의
+     * 계정 정보가 보일 수 있으므로 디스크에 쓰지 않는다. 넘겨받은 상태가 아니면 `409 not_active`, 없는 탭은
+     * `404 not_found`다([ApiException]).
+     */
+    suspend fun handoverFrame(tab: String, maxBytes: Int): ByteArray = onRoutes { base, token ->
+        val url = "$base/v1/browser/handover/frame".toHttpUrl().newBuilder().addPathSegment(tab).build()
+        execute(Request.Builder().url(url).get(), token).use { response ->
+            requireSuccess(response)
+            val body = response.requireBody()
+            if (body.contentLength() > maxBytes) throw IOException("화면이 너무 커요")
+            body.byteStream().use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(16 * 1024)
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    out.write(buffer, 0, n)
+                    if (out.size() > maxBytes) throw IOException("화면이 너무 커요")
+                }
+                out.toByteArray()
+            }
+        }
+    }
+
     /** 토큰이 든 머리로 그림을 받아 [dest]에 쓴다. [maxBytes]를 넘으면 그만두고 [IOException]을 던진다. */
     private suspend fun fetchCapped(dest: File, maxBytes: Long, url: (base: String) -> HttpUrl) {
         onRoutes { base, token ->
@@ -253,6 +280,7 @@ class GatewayApi(
         401 -> "unauthorized"
         403 -> "forbidden"
         404 -> "not_found"
+        409 -> "not_active"
         410 -> "gone"
         413 -> "too_large"
         429 -> "too_many_attempts"

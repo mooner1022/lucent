@@ -8,7 +8,12 @@
     보일 수 없는 파일 한 벌: 표가 든 마크다운, 코드, CP949 CSV, 큰 로그, 줄글, 한 줄짜리 JSON, 긴 그림, 잔글씨가 든 긴 갈무리,
     여러 쪽 PDF, 깨진 글·그림·PDF, 압축 파일, 410으로 답하는 파일), 긴글/long, 알림/note, 끊어/dropme, 취소/revoke, 코드/code,
     이모지/emoji(글 속 `:name:`: 목록에 있는 것, 없는 것, `\\:`로 막은 것, 코드 안의 것),
-    스티커/sticker(글 뒤에 `sticker` 프레임 한 장).
+    스티커/sticker(글 뒤에 `sticker` 프레임 한 장),
+    로그인/login(입력 칸이 있는 로그인 카드, 결정 0063. 넣는 아이디가 결과를 정한다: ok, already, code, captcha, 그 밖은 실패해
+    새 카드가 3번까지 온다. 넣은 값은 찍지 않고 칸 이름과 길이만 남긴다). `--no-forms`를 주면 form을 모르는 예전 데몬처럼 군다.
+  - `--scopes browser_handover`를 주면 브라우저 화면 넘겨받기(6.7, 8.9)가 생긴다: 눈금이 그려진 1365×812 화면에 사람 확인 칸
+    하나(520,360~580,420)와 글 칸이 있고, 칸을 누르면 초록으로 바뀐다. /_dev/handover 로 누른 자리·넣은 글의 길이·키·시작과 끝의
+    횟수를 보고, ?expire=1(시간이 다 됨), ?popup=1(새 탭)로 조작한다. 화면은 Pillow가 있으면 JPEG, 없으면 PNG다.
   - 이모지·스티커 목록은 `expressions/` 폴더의 견본 그림으로 만든다(아래 EXPRESSIONS). `--no-expressions`를 주면 이 기능이 없는
     데몬처럼 군다(`welcome.expressions` 없음, `GET /v1/expressions`는 501).
   - `--scopes security_mode`를 주면 이 토큰이 권한 모드를 바꿀 수 있다(기본은 범위 없음: 보기만 한다).
@@ -42,6 +47,16 @@ CLIENT = "cl-3f9a0c12de"
 CONV = f"app:{CLIENT}"
 state = {}
 SCOPES = []
+FORMS_ON = True
+# 브라우저 화면 넘겨받기(6.7)의 상태와, 앱이 보낸 입력의 기록. 넣은 글은 길이만 남긴다.
+HAND = {"active": False, "until": 0.0, "checked": False, "clicks": [], "text_lens": [], "keys": [], "scroll": 0, "starts": 0, "ends": 0,
+        "frames": 0, "popup": False}
+HAND_MAX = 900
+HAND_SIZE = (1365, 812)
+HAND_BOX = (520, 360, 580, 420)  # 사람 확인 칸(왼쪽, 위, 오른쪽, 아래)
+HAND_METHODS = ["browser.handover.end", "browser.handover.input", "browser.handover.start", "browser.handover.state"]
+# 마지막 `press.inputs`의 모양(칸 이름과 길이). 값은 남기지 않는다.
+LAST_INPUTS = {}
 SLOW = {"ms": 0}
 FAIL = {"n": 0}
 MODES = {"엄격": "모든 도구를 승인 카드로 확인해요.", "기본": "위험한 도구는 승인 카드를 거쳐요.", "해제": "승인 없이 바로 실행해요."}
@@ -257,10 +272,11 @@ def welcome():
 
 def _welcome():
     return {"type": "welcome", "v": 2, "client": CLIENT, "name": "휴대폰 앱", "role": "app", "conversation": CONV,
-            "seq": state["seq"], "scopes": list(SCOPES), "methods": ["commands", "command", "history", "push.register", "push.unregister"] + ([] if LEGACY_COMMANDS else ["session.compact"]),
+            "seq": state["seq"], "scopes": list(SCOPES), "methods": sorted(["commands", "command", "history", "push.register", "push.unregister"] + ([] if LEGACY_COMMANDS else ["session.compact"])
+                              + (HAND_METHODS if "browser_handover" in SCOPES else [])),
             "features": TOOLS["features"], "tools": [t["name"] for t in TOOLS["list"]], "notify_target": True, "push": {"available": True, "registered": state["push"] is not None},
             "capabilities": {"max_message_chars": 8000, "buttons": True, "edit": True, "prompts": True, "attachments": True,
-                             "max_upload_bytes": 31457280, "max_message_files": 10}}
+                             "max_upload_bytes": 31457280, "max_message_files": 10, **({"forms": True} if FORMS_ON else {})}}
 
 
 def err(status, code, message):
@@ -295,9 +311,24 @@ def card(headline, title, tone="pending", fields=(), body="", footer=None, butto
     return {"headline": headline, "title": title, "fields": list(fields), "body": body, "footer": footer, "tone": tone, "buttons": list(buttons)}
 
 
-def new_card_frame(kind):
+def new_card_frame(kind, prior=None):
     ref = f"{CONV}:{uuid.uuid4().hex[:12]}"
-    if kind == "code":
+    if kind == "login":
+        # 로그인 입력 카드(9.1, 결정 0063). 첫 버튼에 여러 칸을 받는 form이 있다. 본문의 링크는 같은 일을 하는 다른 길이다.
+        fields = [{"name": "사이트", "value": "https://example.com", "inline": True},
+                  {"name": "까닭", "value": "게시판을 읽으려면 로그인이 필요합니다.", "inline": False}]
+        if prior: fields.append({"name": "앞선 시도", "value": prior, "inline": False})
+        c = card("🔐 **로그인이 필요합니다** 예시 사이트", "로그인 정보 입력", fields=fields,
+                 body="사이트 주소가 맞는지 확인하고 [로그인 정보 입력]을 눌러 아이디와 비밀번호를 넣어 주세요(실패하면 3번까지). "
+                      "넣은 값은 Lucia(모델)에게 가지 않고 데몬이 브라우저에 바로 넣습니다.\n버튼이 없거나 안 되면: https://admin.example/site-login/sample",
+                 footer="요청 3f2a9c0e · 10분 안에 답이 없으면 로그인하지 않습니다",
+                 buttons=[{"action": "approval:3f2a9c0e:approve", "label": "로그인 정보 입력", "primary": True, "prompt": None,
+                           "form": {"title": "로그인 정보 입력", "fields": [
+                               {"key": "username", "label": "아이디", "kind": "text", "min_len": 1, "max_len": 100},
+                               {"key": "password", "label": "비밀번호", "kind": "secret", "min_len": 1, "max_len": 200},
+                               {"key": "save", "label": "이 로그인 저장(다음부터는 승인만)", "kind": "check", "min_len": 0, "max_len": 0}]}},
+                          {"action": "approval:3f2a9c0e:deny", "label": "취소", "primary": False, "prompt": None, "form": None}])
+    elif kind == "code":
         c = card("인증 코드가 필요해요", "은행 로그인", buttons=[
             {"action": "code:1", "label": "코드 입력", "primary": True,
              "prompt": {"title": "인증 코드", "label": "6자리 코드", "placeholder": "123456", "min_len": 6, "max_len": 6}},
@@ -549,6 +580,13 @@ async def reply_to(text, sticker=None):
     if any(w in text for w in ("알림", "note")):
         push_frame({"type": "note", "body": "메일함을 확인하고 있어요"})
         await asyncio.sleep(1.0)
+    if any(w in text for w in ("로그인", "login")):
+        # 로그인 입력 카드. 넣는 아이디가 결과를 정한다: ok(성공), already(이미 로그인), code(인증 코드 카드),
+        # captcha(사람 확인 안내), 그 밖은 실패해 새 카드가 온다(3번까지).
+        state["login_tries"] = 0
+        ref, c = new_card_frame("login")
+        push_frame({"type": "card", "ref": ref, "card": c})
+        return
     if any(w in text for w in ("카드", "코드", "card", "code")):
         ref, c = new_card_frame("code" if any(w in text for w in ("코드", "code")) else "mail")
         push_frame({"type": "text", "body": "보내기 전에 확인받을게요."})
@@ -669,9 +707,18 @@ async def ws_handler(request):
             asyncio.ensure_future(reply_to(text, sticker))
         elif t == "press":
             ref = f.get("ref"); c = state["cards"].get(ref)
-            print("[ws] press", ref, f.get("action"), "input=" + ("<있음>" if f.get("input") else "없음"))
+            inputs = f.get("inputs")
+            # 값은 찍지 않는다. 칸 이름과 길이만 남긴다(불은 그대로).
+            shape = None if not isinstance(inputs, dict) else {k: (v if isinstance(v, bool) else len(v) if isinstance(v, str) else "?") for k, v in inputs.items()}
+            print("[ws] press", ref, f.get("action"), "input=" + ("<있음>" if f.get("input") else "없음"), "inputs=" + (json.dumps(shape, ensure_ascii=False) if shape is not None else "없음"))
+            if "inputs" in f and (not isinstance(inputs, dict) or len(inputs) > 8 or any(
+                    not k or len(k) > 40 or not isinstance(v, (str, bool)) or (isinstance(v, str) and len(v) > 1000) for k, v in inputs.items())):
+                await ws.send_str(json.dumps({"type": "error", "code": "bad_frame", "message": "입력 칸의 모양이 틀렸다"})); continue
             if c is None:
                 await ws.send_str(json.dumps({"type": "error", "code": "bad_ref", "message": "없는 카드"})); continue
+            if any(b.get("form") for b in c["buttons"]):
+                await press_login(ref, c, f.get("action", ""), inputs, shape)
+                continue
             await asyncio.sleep(0.8)
             ok = f.get("action", "").startswith(("approve", "code"))
             closed = {**c, "tone": "success" if ok else "danger", "headline": "✅ 보냈습니다" if ok else "❌ 거절했어요", "buttons": []}
@@ -743,10 +790,150 @@ def model_label():
     return "기본(sonnet)" if key == "default" else next(label for k, label, _ in MODELS if k == key)
 
 
+async def press_login(ref, c, action, inputs, shape):
+    """로그인 입력 카드를 눌렀다(9.1). 카드는 바로 닫히고("받았다"), 결과는 뒤에 글이나 새 카드로 온다."""
+    if action.endswith(":deny"):
+        state["cards"].pop(ref, None)
+        push_frame({"type": "card_closed", "ref": ref, "card": {**c, "tone": "danger", "headline": "🚫 거절했습니다. 로그인하지 않았습니다.", "buttons": []}})
+        return
+    if inputs is None:
+        return  # form이 있는 버튼을 inputs 없이 누르면 아무 일도 없다(카드는 열린 채 남는다).
+    LAST_INPUTS.clear(); LAST_INPUTS.update(shape)
+    user = inputs.get("username") if isinstance(inputs.get("username"), str) else ""
+    state["cards"].pop(ref, None)
+    push_frame({"type": "card_closed", "ref": ref, "card": {**c, "tone": "neutral", "headline": "⏳ 로그인하고 있습니다. 결과는 곧 알려 드립니다.", "buttons": []}})
+    await asyncio.sleep(1.5)
+    if user == "ok":
+        push_frame({"type": "text", "body": "✅ 예시 사이트에 로그인했습니다. 다음부터는 저장된 로그인을 승인만 하면 됩니다. 하던 일을 다시 말씀해 주세요."})
+    elif user == "already":
+        push_frame({"type": "text", "body": "✅ 예시 사이트: 이미 로그인돼 있었습니다. 넣은 비밀번호는 확인하지 못해 저장하지 않았습니다."})
+    elif user == "code":
+        r, card2 = new_card_frame("code")
+        push_frame({"type": "card", "ref": r, "card": card2})
+    elif user == "captcha":
+        push_frame({"type": "text", "body": "🧩 예시 사이트이(가) 사람 확인(캡차)을 띄워 아직 로그인되지 않았습니다. 10분 안에 앱의 브라우저 화면 넘겨받기"
+                                            "(또는 관리 페이지 \"브라우저 넘겨받기\")에서 그 화면을 직접 풀어 주세요: https://admin.example/browser/handover"})
+    else:
+        state["login_tries"] = state.get("login_tries", 0) + 1
+        if state["login_tries"] >= 3:
+            push_frame({"type": "text", "body": "⚠️ 예시 사이트 이 링크로 3번 시도해 닫았습니다. 다시 하려면 Lucia에게 요청해 주세요."})
+        else:
+            why = "⚠️ 사이트가 아이디나 비밀번호를 받지 않았습니다."
+            push_frame({"type": "text", "body": "⚠️ 예시 사이트 로그인하지 못했습니다: 사이트가 받지 않았습니다. 새로 올린 카드에서 다시 넣을 수 있습니다."})
+            r, card2 = new_card_frame("login", prior=why)
+            push_frame({"type": "card", "ref": r, "card": card2})
+
+
+def hand_state():
+    if HAND["active"] and time.time() >= HAND["until"]:
+        HAND["active"] = False  # 최대 시간이 지나면 데몬이 끝낸다.
+    tabs = []
+    if HAND["active"]:
+        tabs = [{"id": "TAB1", "url": "https://example.com/login", "title": "로그인 · 예시 사이트"}]
+        if HAND["popup"]: tabs.append({"id": "TAB2", "url": "https://example.com/verify", "title": "본인 확인"})
+    return {"active": HAND["active"], "left_seconds": int(HAND["until"] - time.time()) if HAND["active"] else None,
+            "max_seconds": HAND_MAX, "tabs": tabs}
+
+
+async def hand_call(method, params, ok, bad):
+    """`browser.handover.*`(6.7). 넣은 글과 누른 자리는 시험이 볼 수 있게 모양만 남긴다(글은 길이)."""
+    if method == "browser.handover.state":
+        return await ok(hand_state())
+    if method == "browser.handover.start":
+        if not hand_state()["active"]:
+            HAND.update(active=True, until=time.time() + HAND_MAX, checked=False)
+        HAND["starts"] += 1
+        print("[handover] start")
+        return await ok(hand_state())
+    if method == "browser.handover.end":
+        HAND["active"] = False; HAND["ends"] += 1
+        print("[handover] end")
+        return await ok({"active": False, "warning": None})
+    tab, kind = params.get("tab"), params.get("kind")
+    def whole(v, low=None): return isinstance(v, int) and not isinstance(v, bool) and (low is None or v >= low)
+    if not isinstance(tab, str) or not tab or kind not in ("click", "text", "key", "scroll"):
+        return await bad("bad_params", "tab이나 kind가 틀렸다")
+    if kind == "click" and not (whole(params.get("x"), 0) and whole(params.get("y"), 0)): return await bad("bad_params", "좌표가 틀렸다")
+    if kind == "text" and not (isinstance(params.get("text"), str) and 1 <= len(params["text"]) <= 2000): return await bad("bad_params", "글이 틀렸다")
+    if kind == "key" and not isinstance(params.get("key"), str): return await bad("bad_params", "키가 없다")
+    if kind == "scroll" and not whole(params.get("dy")): return await bad("bad_params", "dy가 틀렸다")
+    if not hand_state()["active"]:
+        return await bad("not_active", "넘겨받은 상태가 아니다")
+    if tab not in ("TAB1", "TAB2"): return await bad("failed", "없는 탭")
+    if kind == "click":
+        x, y = params["x"], params["y"]
+        HAND["clicks"].append([x, y]); del HAND["clicks"][:-20]
+        l, t0, r, b = HAND_BOX
+        if l <= x < r and t0 <= y < b: HAND["checked"] = True
+        print("[handover] click", x, y)
+    elif kind == "text":
+        HAND["text_lens"].append(len(params["text"])); del HAND["text_lens"][:-20]
+        print("[handover] text", len(params["text"]), "자")
+    elif kind == "key":
+        if params["key"] not in ("enter", "tab", "backspace", "escape", "up", "down"): return await bad("failed", "모르는 키")
+        HAND["keys"].append(params["key"]); del HAND["keys"][:-20]
+        print("[handover] key", params["key"])
+    else:
+        HAND["scroll"] += max(-3000, min(3000, params["dy"]))
+        print("[handover] scroll", params["dy"])
+    await ok({"sent": True})
+
+
+def hand_frame_bytes():
+    """넘겨받은 브라우저의 화면 한 장. Pillow가 있으면 JPEG로 그리고(사람 확인 칸, 마지막으로 누른 자리, 넣은 글의 길이),
+    없으면 같은 크기의 PNG를 보낸다(앱은 내용으로 가려 읽는다)."""
+    w, h = HAND_SIZE
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return png(w, h)
+    im = Image.new("RGB", (w, h), (246, 248, 252)); d = ImageDraw.Draw(im)
+    d.rectangle((0, 0, w, 56), fill=(36, 103, 166))
+    for x in range(0, w, 100):  # 좌표를 눈으로 읽을 수 있게 100화소마다 눈금을 긋는다.
+        d.line((x, 56, x, h), fill=(228, 233, 242)); d.text((x + 4, 60), str(x), fill=(120, 130, 150))
+    for y in range(100, h, 100):
+        d.line((0, y, w, y), fill=(228, 233, 242)); d.text((4, y + 4), str(y), fill=(120, 130, 150))
+    off = HAND["scroll"]
+    l, t0, r, b = HAND_BOX
+    d.rectangle((420, 300 - off, 945, 480 - off), outline=(120, 130, 150), width=3, fill=(255, 255, 255))
+    d.rectangle((l, t0 - off, r, b - off), outline=(36, 103, 166), width=4, fill=(92, 184, 122) if HAND["checked"] else (255, 255, 255))
+    d.rectangle((620, 375 - off, 900, 405 - off), fill=(52, 66, 107))
+    d.rectangle((420, 540 - off, 945, 600 - off), outline=(120, 130, 150), width=3, fill=(255, 255, 255))
+    for i in range(min(sum(HAND["text_lens"]), 30)): d.ellipse((440 + i * 16, 562 - off, 450 + i * 16, 572 - off), fill=(26, 34, 71))
+    if HAND["clicks"]:
+        x, y = HAND["clicks"][-1]; d.ellipse((x - 12, y - 12, x + 12, y + 12), outline=(214, 69, 96), width=4)
+    out = io.BytesIO(); im.save(out, "JPEG", quality=70)
+    return out.getvalue()
+
+
+async def hand_frame(request):
+    if "browser_handover" not in SCOPES: return err(403, "forbidden", "범위가 없다")
+    if not hand_state()["active"]: return err(409, "not_active", "넘겨받은 상태가 아니다")
+    tab = request.match_info["tab"].removesuffix(".jpg")
+    if tab not in ("TAB1", "TAB2") or (tab == "TAB2" and not HAND["popup"]): return err(404, "not_found", "없는 탭")
+    HAND["frames"] += 1
+    if SLOW["ms"]: await asyncio.sleep(SLOW["ms"] / 1000)
+    return web.Response(body=hand_frame_bytes(), content_type="image/jpeg",
+                        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+async def dev_handover(request):
+    """/_dev/handover?expire=1(데몬이 시간이 다 돼 끝낸 것처럼), ?popup=1|0(새 창이 탭으로 생기거나 사라진다) : 넘겨받기를 조작하고 기록을 본다."""
+    q = request.query
+    if q.get("expire"): HAND["until"] = 0.0
+    if "popup" in q: HAND["popup"] = q["popup"] == "1"
+    hand_state()
+    return web.json_response({k: v for k, v in HAND.items() if k != "until"} | {"last_inputs": dict(LAST_INPUTS)})
+
+
 async def handle_call(ws, f):
     rid, method, params = f.get("id"), f.get("method"), f.get("params") or {}
     def ok(data): return ws.send_str(json.dumps({"type": "result", "id": rid, "ok": True, "data": data}, ensure_ascii=False))
     def bad(code, msg): return ws.send_str(json.dumps({"type": "result", "id": rid, "ok": False, "error": {"code": code, "message": msg}}, ensure_ascii=False))
+    if isinstance(method, str) and method.startswith("browser.handover."):
+        if "browser_handover" not in SCOPES: return await bad("forbidden", "범위가 없다")
+        if method not in HAND_METHODS: return await bad("unknown_method", "없는 메서드")
+        return await hand_call(method, params if isinstance(params, dict) else {}, ok, bad)
     can_change = "security_mode" in SCOPES
     if method == "commands":
         mode = {"name": "권한", "about": "권한 모드 보기·바꾸기", "options": list(MODES), "can_change": can_change}
@@ -1009,6 +1196,7 @@ def make_app():
         web.put("/v1/push", put_push), web.delete("/v1/push", del_push), web.get("/v1/ws", ws_handler),
         web.get("/v1/expressions", expressions), web.get("/v1/expressions/files/{id}", expression_file),
         web.get("/v1/profile", profile), web.get("/v1/profile/avatar/{id}", profile_avatar), web.get("/_dev/profile", dev_profile),
+        web.get("/v1/browser/handover/frame/{tab}", hand_frame), web.get("/_dev/handover", dev_handover),
         web.get("/_dev/expressions", dev_expressions), web.get("/_dev/slow", dev_slow), web.get("/_dev/fail", dev_fail), web.get("/_dev/compact", dev_compact), web.get("/_dev/model", dev_model), web.get("/_dev/invoke", dev_invoke),
         web.get("/_dev/send", dev_send), web.get("/_dev/drop", dev_drop), web.get("/_dev/reset", dev_reset), web.get("/_dev/state", dev_state),
     ])
@@ -1021,11 +1209,13 @@ if __name__ == "__main__":
     p.add_argument("--no-expressions", action="store_true", help="이모지·스티커를 다루지 않는 데몬처럼 군다")
     p.add_argument("--legacy-commands", action="store_true", help="주 모델·current·session.compact가 없는 예전 데몬처럼 군다")
     p.add_argument("--no-profile", action="store_true", help="프로필 이미지 기능이 없는 예전 데몬처럼 군다")
+    p.add_argument("--no-forms", action="store_true", help="입력 칸이 있는 카드(form)를 모르는 예전 데몬처럼 군다(capabilities.forms가 없다)")
     a = p.parse_args()
     SCOPES.extend(x for x in a.scopes.split(",") if x)
     EXPRESSIONS_ON = not a.no_expressions
     LEGACY_COMMANDS = a.legacy_commands
     PROFILE_ON = not a.no_profile
+    FORMS_ON = not a.no_forms
     load_expressions()
     reset()
     print(f"가짜 Lucia 서버: 0.0.0.0:{a.port}\n토큰: {TOKEN}")

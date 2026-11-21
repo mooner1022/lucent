@@ -47,6 +47,7 @@ import dev.mooner.lucent.databinding.ItemUserBinding
 import dev.mooner.lucent.protocol.Card
 import dev.mooner.lucent.protocol.CardButton
 import dev.mooner.lucent.protocol.FileRef
+import dev.mooner.lucent.protocol.Forms
 import dev.mooner.lucent.ui.common.EmojiSpans
 import dev.mooner.lucent.ui.common.ExpressionImage
 import dev.mooner.lucent.ui.common.FileActions
@@ -482,7 +483,7 @@ class ChatAdapter(
             b.card.setBackgroundResource(if (pending) R.drawable.bg_card_pending else R.drawable.bg_card)
 
             // 서버가 붙인 이모지(✅ ⌛ 등)는 지운다. 같은 뜻을 어조 아이콘이 이미 전한다.
-            val headline = Plain.text(card.headline)
+            val headline = Plain.line(card.headline)
             val title = Plain.text(card.title)
             b.headline.text = headline
             b.headline.isVisible = headline.isNotBlank()
@@ -525,7 +526,7 @@ class ChatAdapter(
             b.footer.isVisible = footer.isNotBlank()
             b.footer.text = footer
 
-            bindButtons(item, card, row.pressing)
+            bindButtons(item, Forms.buttons(card, row.forms), row.pressing)
         }
 
         /** 짧은 값(`inline`)은 옆 칸과 나란히 두고, 나머지는 한 줄씩 둔다. */
@@ -558,16 +559,16 @@ class ChatAdapter(
         }
 
         /** 대기 중인 카드만 버튼이 있다. 누른 뒤 `card_closed`가 올 때까지 잠근다(사양 12.5). */
-        private fun bindButtons(item: StoredItem, card: Card, pressing: Boolean) {
+        private fun bindButtons(item: StoredItem, buttons: List<CardButton>, pressing: Boolean) {
             val ref = item.ref
             b.buttons.removeAllViews()
-            b.buttons.isVisible = card.buttons.isNotEmpty() && ref != null
-            if (card.buttons.isEmpty() || ref == null) return
+            b.buttons.isVisible = buttons.isNotEmpty() && ref != null
+            if (buttons.isEmpty() || ref == null) return
 
-            val vertical = card.buttons.size > 2
+            val vertical = buttons.size > 2
             b.buttons.orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             val inflater = LayoutInflater.from(b.root.context)
-            for (button in card.buttons) {
+            for (button in buttons) {
                 val view = inflater.inflate(R.layout.item_card_button, b.buttons, false) as TextView
                 view.text = Plain.text(button.label)
                 if (button.primary) {

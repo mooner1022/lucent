@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  입력창의 글 칸. 값을 화면 상태에 저장하지 않고(saveEnabled), 자동 완성에 넘기지 않는다.
+  보이는 글인지 가리는 글인지는 코드가 칸의 종류에 따라 정한다.
+-->
+<com.google.android.material.textfield.TextInputLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/inputLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/space_s"
+    android:saveEnabled="false"
+    app:errorEnabled="true">
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:importantForAutofill="no"
+        android:saveEnabled="false"
+        android:singleLine="true"/>
+</com.google.android.material.textfield.TextInputLayout>

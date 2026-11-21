@@ -50,12 +50,14 @@ import dev.mooner.lucent.protocol.CardButton
 import dev.mooner.lucent.protocol.ErrorCodes
 import dev.mooner.lucent.protocol.Expression
 import dev.mooner.lucent.protocol.FileRef
+import dev.mooner.lucent.protocol.Handover
 import dev.mooner.lucent.protocol.LucentJson
 import dev.mooner.lucent.tools.ReplyAsk
 import dev.mooner.lucent.ui.common.EmojiSpans
 import dev.mooner.lucent.ui.common.FaceViewer
 import dev.mooner.lucent.ui.common.FileActions
 import dev.mooner.lucent.ui.common.FilePreview
+import dev.mooner.lucent.ui.common.FormDialog
 import dev.mooner.lucent.ui.common.Format
 import dev.mooner.lucent.ui.common.Markdown
 import dev.mooner.lucent.ui.common.Motion
@@ -67,6 +69,7 @@ import dev.mooner.lucent.ui.common.SheetDialog
 import dev.mooner.lucent.ui.common.TextSheet
 import dev.mooner.lucent.ui.common.enableAppEdgeToEdge
 import dev.mooner.lucent.ui.common.sideInset
+import dev.mooner.lucent.ui.handover.HandoverActivity
 import dev.mooner.lucent.ui.settings.SettingsActivity
 import dev.mooner.lucent.ui.setup.SetupActivity
 import dev.mooner.lucent.ui.sky.Mood
@@ -359,10 +362,13 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         binding.more.setOnClickListener { anchor ->
             PopupMenu(this, anchor).apply {
                 menu.add(0, MENU_REFRESH, 0, R.string.menu_refresh_history)
-                menu.add(0, MENU_SETTINGS, 1, R.string.menu_settings)
+                // 토큰에 범위가 있고 브라우저를 켠 데몬일 때만 보인다(6.7).
+                if (Handover.available(hub.welcome.value)) menu.add(0, MENU_HANDOVER, 1, R.string.menu_handover)
+                menu.add(0, MENU_SETTINGS, 2, R.string.menu_settings)
                 setOnMenuItemClickListener {
                     when (it.itemId) {
                         MENU_REFRESH -> refreshHistory()
+                        MENU_HANDOVER -> startActivity(Intent(this@ChatActivity, HandoverActivity::class.java))
                         MENU_SETTINGS -> startActivity(Intent(this@ChatActivity, SettingsActivity::class.java))
                     }
                     true
@@ -389,6 +395,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
                         buildRows(
                             items, typing, pressing.keys, Format.zone(), welcome?.conversation,
                             working = activity != null,
+                            forms = welcome?.capabilities?.forms == true,
                         )
                     }.collect(::showRows)
                 }
@@ -858,10 +865,12 @@ class ChatActivity : AppCompatActivity(), ChatActions {
 
     override fun onPress(ref: String, button: CardButton) {
         val prompt = button.prompt
-        if (prompt != null) {
-            PromptDialog.show(this, prompt) { input -> hub.press(ref, button.action, input) }
-        } else {
-            hub.press(ref, button.action)
+        val form = button.form
+        when {
+            // 여러 칸을 받는 버튼(로그인 정보 등). 그릴 수 있는 것만 여기까지 온다(Forms.buttons).
+            form != null -> FormDialog.show(this, form) { inputs -> hub.press(ref, button.action, inputs = inputs) }
+            prompt != null -> PromptDialog.show(this, prompt) { input -> hub.press(ref, button.action, input) }
+            else -> hub.press(ref, button.action)
         }
     }
 
@@ -983,6 +992,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         const val NEAR_END_PART = 4
         const val MENU_REFRESH = 1
         const val MENU_SETTINGS = 2
+        const val MENU_HANDOVER = 3
         const val MENU_COPY = 3
         const val MENU_SELECT = 4
         const val TICK_MS = 1_000L

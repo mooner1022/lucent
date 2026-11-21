@@ -9,6 +9,12 @@ package dev.mooner.lucent.ui.common
  */
 object Plain {
 
+    /**
+     * 서식 없이 한 줄로 그리는 글(카드의 `headline`, 알림 미리보기). 이모지와 함께 굵게 표시(`**`)도 걷어 낸다:
+     * 데몬은 Discord에 맞춰 `**로그인이 필요합니다**`처럼 보내는데, 이 자리는 마크다운으로 그리지 않는다.
+     */
+    fun line(raw: String): String = text(raw.replace("**", ""))
+
     fun text(raw: String): String {
         if (raw.isEmpty()) return raw
         val out = StringBuilder(raw.length)

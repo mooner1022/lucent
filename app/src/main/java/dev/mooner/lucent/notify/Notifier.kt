@@ -75,7 +75,7 @@ class Notifier(private val context: Context, private val settings: AppSettings) 
             is ServerFrame.Text -> preview(frame.body, R.string.notify_new_message) to ID_MESSAGES
             is ServerFrame.Files -> preview(frame.body, R.string.notify_new_files) to ID_MESSAGES
             is ServerFrame.Sticker -> context.getString(R.string.notify_new_sticker) to ID_MESSAGES
-            is ServerFrame.CardOpen -> preview(dev.mooner.lucent.ui.common.Plain.text(frame.card.headline), R.string.notify_new_card) to (ID_CARD_BASE + (frame.seq % 1000).toInt())
+            is ServerFrame.CardOpen -> preview(dev.mooner.lucent.ui.common.Plain.line(frame.card.headline), R.string.notify_new_card) to (ID_CARD_BASE + (frame.seq % 1000).toInt())
             else -> return
         }
         val builder = NotificationCompat.Builder(context, if (approval) CHANNEL_APPROVALS else CHANNEL_MESSAGES)

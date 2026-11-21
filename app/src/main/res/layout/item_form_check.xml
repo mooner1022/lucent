@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 입력창의 켜고 끄는 칸: 이름은 왼쪽, 스위치는 오른쪽. 줄 어디를 눌러도 바뀐다. -->
+<com.google.android.material.materialswitch.MaterialSwitch
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/check"
+    style="@style/Text.BodyS"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/touch_target"
+    android:saveEnabled="false"/>

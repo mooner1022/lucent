@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  브라우저 화면 넘겨받기(사양 6.7): 위에 하늘 머리말, 가운데에 넘겨받은 화면, 아래에 조작 자리.
+  조작 자리는 한 겹이다: 남은 시간과 끝내기 → 키 줄 → 글 넣는 칸.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include
+        android:id="@+id/pageHeader"
+        layout="@layout/view_page_header"/>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/sky_wash">
+
+        <dev.mooner.lucent.ui.handover.FrameView
+            android:id="@+id/frame"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/handover_frame"/>
+
+        <!-- 넘겨받는 중, 받지 못함 같은 상태. 화면이 보이면 사라진다. -->
+        <LinearLayout
+            android:id="@+id/notice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/gutter">
+
+            <TextView
+                android:id="@+id/noticeText"
+                style="@style/Text.Body"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="@color/ink_muted"
+                tools:text="화면을 넘겨받는 중…"/>
+
+            <TextView
+                android:id="@+id/retry"
+                style="@style/Btn.Secondary"
+                android:layout_marginTop="@dimen/space_m"
+                android:text="@string/retry"
+                android:visibility="gone"/>
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/gutter"
+        android:paddingTop="@dimen/space_s"
+        android:paddingBottom="@dimen/space_s">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/left"
+                    style="@style/Text.Label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/ink"
+                    tools:text="13분 32초 남았어요"/>
+
+                <TextView
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/handover_hint"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tabs"
+                style="@style/Btn.Text"
+                android:visibility="gone"
+                tools:text="탭 2개"
+                tools:visibility="visible"/>
+
+            <TextView
+                android:id="@+id/done"
+                style="@style/Btn.Primary"
+                android:layout_marginStart="@dimen/space_s"
+                android:text="@string/handover_done"/>
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_s"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/keys"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
+
+        <!-- 글 넣기: 화면에서 칸을 먼저 누른 뒤 여기에 적어 보낸다. 값을 화면 상태·자동 완성에 남기지 않는다. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_s"
+            android:background="@drawable/bg_composer"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="@dimen/space_inset">
+
+            <EditText
+                android:id="@+id/text"
+                style="@style/Text.Body"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/handover_text_hint"
+                android:imeOptions="actionSend|flagNoPersonalizedLearning"
+                android:importantForAutofill="no"
+                android:inputType="textVisiblePassword|textNoSuggestions"
+                android:minHeight="@dimen/control"
+                android:paddingHorizontal="@dimen/space_m"
+                android:saveEnabled="false"
+                android:singleLine="true"/>
+
+            <ImageButton
+                android:id="@+id/send"
+                android:layout_width="@dimen/control"
+                android:layout_height="@dimen/control"
+                android:background="@drawable/bg_send"
+                android:contentDescription="@string/handover_send"
+                android:scaleType="center"
+                android:src="@drawable/ic_send"
+                app:tint="@color/on_sky"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

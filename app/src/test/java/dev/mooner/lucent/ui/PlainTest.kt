@@ -30,4 +30,10 @@ class PlainTest {
         assertEquals("가족", Plain.text("👨‍👩‍👧 가족"))
         assertEquals("한국", Plain.text("🇰🇷 한국"))
     }
+
+    @Test fun `한 줄로 그리는 글에서는 굵게 표시도 걷어 낸다`() {
+        assertEquals("로그인이 필요합니다 예시 사이트", Plain.line("🔐 **로그인이 필요합니다** 예시 사이트"))
+        assertEquals("보냈습니다", Plain.line("✅ 보냈습니다"))
+        assertEquals("2 * 3", Plain.line("2 * 3"))
+    }
 }

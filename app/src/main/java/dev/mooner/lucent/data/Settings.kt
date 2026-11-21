@@ -138,6 +138,14 @@ class AppSettings(context: Context) {
             putString(FB_SENDER, value?.senderId)
         }
 
+    /**
+     * 브라우저 화면 넘겨받기를 시작해 놓고 끝냈다는 답을 아직 받지 못했다. 끝내지 않으면 루시아가 길게는 15분 동안
+     * 브라우저를 쓰지 못하므로, 다음에 연결되면 끝낸다(`LucentHub.endHandover`).
+     */
+    var handoverOpen: Boolean
+        get() = prefs.getBoolean(HANDOVER_OPEN, false)
+        set(value) = prefs.edit { putBoolean(HANDOVER_OPEN, value) }
+
     /** 마지막 `welcome`. 연결이 없을 때 설정 화면이 보여 주는 값이다. */
     var lastWelcome: Welcome?
         get() = prefs.getString(WELCOME, null)?.let { runCatching { LucentJson.decodeFromString(Welcome.serializer(), it) }.getOrNull() }
@@ -210,6 +218,7 @@ class AppSettings(context: Context) {
         const val TOOL_REPLY = "tool_reply"
         const val REPLY_CONFIRM = "tool_reply_confirm"
         const val TOOL_USED = "tool_used_"
+        const val HANDOVER_OPEN = "handover_open"
         const val FB_PROJECT = "firebase_project_id"
         const val FB_APP = "firebase_app_id"
         const val FB_KEY = "firebase_api_key"

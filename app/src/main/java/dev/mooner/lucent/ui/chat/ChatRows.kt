@@ -38,7 +38,8 @@ sealed interface Row {
         val latest: StoredItem get() = items.last()
     }
 
-    data class CardRow(val item: StoredItem, val pressing: Boolean) : Row {
+    /** [forms]는 데몬이 입력창이 있는 버튼(`form`)을 쓰는가다. 아니면 그 버튼을 그리지 않는다(`Forms.buttons`). */
+    data class CardRow(val item: StoredItem, val pressing: Boolean, val forms: Boolean = false) : Row {
         override val key get() = "item:${item.id}"
     }
 
@@ -65,6 +66,7 @@ fun buildRows(
     zone: ZoneId = ZoneId.systemDefault(),
     ownConversation: String? = null,
     working: Boolean = false,
+    forms: Boolean = false,
 ): List<Row> {
     val rows = ArrayList<Row>(items.size + 4)
     var lastDay: Long? = null
@@ -97,7 +99,7 @@ fun buildRows(
                 if (last is Row.Note) rows[rows.lastIndex] = last.copy(items = last.items + item)
                 else rows += Row.Note(listOf(item))
             }
-            item.kind == Kind.CARD -> rows += Row.CardRow(item, item.ref != null && item.ref in pressing)
+            item.kind == Kind.CARD -> rows += Row.CardRow(item, item.ref != null && item.ref in pressing, forms)
             else -> rows += Row.Message(
                 item, avatar = startsGroup, time = endsGroup,
                 wide = item.sender != Sender.USER && isLongForm(item.body),

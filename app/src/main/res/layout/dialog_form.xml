@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 여러 칸을 받는 입력창(로그인 정보 등). 칸은 서버가 알린 순서대로 코드가 채운다(FormDialog). -->
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/space_xl"
+        android:paddingTop="@dimen/space_s">
+
+        <LinearLayout
+            android:id="@+id/fields"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"/>
+
+        <!-- 보내지 못한 까닭(연결이 없다). 넣은 값은 그대로 둔다. -->
+        <TextView
+            android:id="@+id/problem"
+            style="@style/Text.Label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_s"
+            android:textColor="@color/error"
+            android:visibility="gone"
+            tools:text="연결되어 있지 않아요"
+            tools:visibility="visible"/>
+    </LinearLayout>
+</ScrollView>

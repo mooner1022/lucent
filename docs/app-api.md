@@ -1,8 +1,8 @@
 # Lucia 앱 접속 API 사양서(프로토콜 판 2)
 
 - 대상: Lucia 전용 앱(Android·iOS·웹·데스크톱)을 만드는 개발자
-- 기준 구현: `crates/luciad/src/gateway.rs`, `gateway/methods.rs`, `gateway/http.rs`, `apppush.rs`. 이 문서와 코드가 다르면 코드가 맞고, 이 문서를 고친다.
-- 설계 까닭: 결정 0021(판 1), 결정 0043(판 2, 외부 노출, 푸시)
+- 기준 구현: `crates/luciad/src/gateway.rs`, `gateway/methods.rs`, `gateway/http.rs`, `gateway/handover.rs`, `apppush.rs`. 이 문서와 코드가 다르면 코드가 맞고, 이 문서를 고친다.
+- 설계 까닭: 결정 0021(판 1), 결정 0043(판 2, 외부 노출, 푸시). 앱에서 로그인 정보 넣기와 브라우저 화면 넘겨받기는 결정 0063.
 - 판: `2`(`welcome.v`). 하위 호환이 깨지는 변경이 있으면 판을 올린다.
 - 이 사양서를 낸 뒤 바뀐 것만 모은 문서는 `docs/app-api-changes.md`다(새 변경이 위에 쌓인다).
 - 커스텀 이모지·스티커 확장은 `docs/app-expressions.md`에 있다(데몬 구현됨, 결정 0045). 이 문서에 더해지는 것:
@@ -123,12 +123,14 @@ Lucia는 홈서버에서 도는 1인용 비서다. 데몬 `luciad`가 대화, �
 
 | 범위 | 허용하는 일 | 기본 |
 |---|---|---|
-| (없음, 기본) | 대화, 카드 누르기, 기록 읽기, 파일, 푸시 등록, 이벤트, 권한 모드 **보기**, 주 모델 보기·바꾸기, 대화 정리(`session.compact`) | 늘 |
+| (없음, 기본) | 대화, 카드 누르기(입력 칸이 있는 카드 포함, 9.1), 기록 읽기, 파일, 푸시 등록, 이벤트, 권한 모드 **보기**, 주 모델 보기·바꾸기, 대화 정리(`session.compact`) | 늘 |
 | `security_mode` | 권한 모드 **바꾸기**(`command` 메서드의 `option`) | 꺼짐 |
 | `app_tools` | Lucia가 이 앱이 내준 기능(`hello.tools`, 7.2)을 부른다 | 꺼짐 |
+| `browser_handover` | 브라우저 화면 넘겨받기(6.7, 8.9): 로그인된 브라우저의 화면을 보고 조작한다 | 꺼짐 |
 
 - 클라이언트의 범위는 `welcome.scopes`와 `GET /v1/me`의 `scopes`에 있다.
-- 범위가 필요한 메서드는 그 범위가 없으면 `welcome.methods`에 보이지 않는다.
+- 범위가 필요한 메서드는 그 범위가 없으면 `welcome.methods`에 보이지 않고, 불러도 `forbidden`이다. HTTP `GET /v1/browser/handover/frame/{tab}`(8.9)도 `browser_handover`가 없으면 `403 forbidden`이다.
+- `browser_handover`는 토큰이 새면 **로그인된 브라우저 세션을 보고 조작할 수 있게 되는** 범위다(13장). 관리 페이지 → 연결에서 토큰마다 "브라우저 화면 넘겨받기 허용"으로 켠다.
 - 범위는 매 프레임마다 다시 읽는다. 바꾸면 다음 프레임부터 듣는다.
 
 ---
@@ -222,6 +224,7 @@ Lucia는 홈서버에서 도는 1인용 비서다. 데몬 `luciad`가 대화, �
     "buttons": true,
     "edit": true,
     "prompts": true,
+    "forms": true,
     "attachments": true,
     "max_upload_bytes": 31457280,
     "max_message_files": 10
@@ -238,7 +241,7 @@ Lucia는 홈서버에서 도는 1인용 비서다. 데몬 `luciad`가 대화, �
 | `conversation` | 문자열 | 이 앱의 대화 ID |
 | `seq` | 정수 | 이 클라이언트에 지금까지 매긴 마지막 프레임 번호(없으면 0) |
 | `scopes` | 문자열 배열 | 3.4 |
-| `methods` | 문자열 배열 | 이 토큰이 부를 수 있는 메서드(6장), 정렬됨 |
+| `methods` | 문자열 배열 | 이 토큰이 부를 수 있는 메서드(6장), 정렬됨. 브라우저를 켠 데몬이고 토큰에 `browser_handover` 범위가 있으면 `browser.handover.state`, `.start`, `.input`, `.end`가 더해진다(6.7). |
 | `features` | 문자열 배열 | 정리된 `hello.features`(`tools`의 첫 마디가 더해진다) |
 | `tools` | 문자열 배열 | 받아들인 `hello.tools`의 이름(7.2). Lucia가 실제로 부르려면 `scopes`에 `app_tools`가 있어야 한다. |
 | `notify_target` | 불 | 이 앱이 "알림 받을 곳"인가(11장) |
@@ -249,6 +252,7 @@ Lucia는 홈서버에서 도는 1인용 비서다. 데몬 `luciad`가 대화, �
 | `capabilities.max_upload_bytes` | 정수 | 파일 하나 상한(바이트) |
 | `capabilities.max_message_files` | 정수 | 말 하나에 붙이는 파일 수 상한 |
 | `capabilities.buttons`, `edit`, `prompts` | 불 | 카드 버튼, 카드 고쳐 그리기(`card_closed`), 값을 받는 버튼을 쓴다(늘 `true`) |
+| `capabilities.forms` | 불 | 여러 칸을 받는 버튼(`form`, 9.1)을 쓴다(늘 `true`). 비밀번호 칸이 들어 있을 수 있다. 이 필드가 없으면 `form`을 모르는 데몬이다. |
 
 ### 5.4 번호, 받음 확인, 다시 받기
 
@@ -358,15 +362,20 @@ Lucia는 홈서버에서 도는 1인용 비서다. 데몬 `luciad`가 대화, �
 
 ```json
 {"type": "press", "ref": "app:cl-3f9a0c12de:5b0e1f3a9c2d", "action": "approve:apr-…", "input": "123456"}
+{"type": "press", "ref": "app:cl-3f9a0c12de:5b0e1f3a9c2d", "action": "approve:apr-…",
+ "inputs": {"username": "me", "password": "…", "save": true}}
 ```
 
 | 필드 | 설명 |
 |---|---|
 | `ref` | 카드의 `ref`. 이 앱의 카드(`app:<자기 ID>:`로 시작)여야 한다. 아니면 `bad_ref`. |
 | `action` | 누른 버튼의 `action` 그대로 |
-| `input` | 값을 받는 버튼(`prompt`가 있는 버튼)만. 앞뒤 공백은 지운다. 서버는 로그에 남기지 않는다. |
+| `input` | 값을 하나 받는 버튼(`prompt`가 있는 버튼)만. 앞뒤 공백은 지운다. 서버는 로그에 남기지 않는다. |
+| `inputs` | 여러 칸을 받는 버튼(`form`이 있는 버튼)만. 칸 이름(`fields[].key`) → 값 객체. 값은 글(문자열)이나 불이다. **값을 다듬지 않는다**(비밀번호의 앞뒤 공백도 값이다). 서버는 로그에 남기지 않는다. 칸은 8개까지, 칸 이름은 1~40자, 값은 1000자까지다. 어기면 `bad_frame`(`inputs`가 객체가 아니거나 값이 글도 불도 아니어도 같다). |
 
 - 성공해도 바로 답이 없다. 결과는 `card_closed`로 온다.
+- `form`이 있는 버튼을 `inputs` 없이 누르면 아무 일도 없다(카드는 열린 채 남는다). `prompt`가 있는 버튼은 `input`, `form`이 있는 버튼은 `inputs`로 보낸다. "취소"처럼 둘 다 없는 버튼은 값 없이 누른다.
+- `inputs`가 있기만 하면(빈 객체 `{}`도) 값을 받은 것으로 보고 카드를 닫는다. 칸의 `min_len`·`max_len`은 데몬이 프레임에서 검사하지 않는다. 앱이 먼저 확인한다.
 - 이미 닫힌 카드, 다른 곳에 올라간 카드, 모르는 `action`을 누르면 아무 일도 없다(조용히 무시).
 
 **`ack`**: `{"type": "ack", "seq": 62}`(5.4). 답 없음.
@@ -539,6 +548,107 @@ Lucia의 상주 대화를 요약해 줄인다(모델 1회). 답은 **정리가 �
 - **연결이 끊겼을 때**: 답은 오지 않지만 정리는 계속된다. 다시 연결해 한 번 더 부르면 된다. 이미 끝났으면 모델을 부르지 않고 `unchanged`가 오고, 아직 도는 중이면 `busy`가 온다. 그래서 다시 불러도 정리가 두 번 돌지 않는다.
 - 정리는 **지금 주 모델**이 한다. 그래서 순서가 중요하다: 정리 → 모델 바꾸기. 반대로 하면 새 모델이 대화 전체를 먼저 읽는다.
 - 범위는 필요 없다.
+
+### 6.7 `browser.handover.*`: 브라우저 화면 넘겨받기(결정 0063)
+
+로그인 도중 사이트가 사람 확인(캡차, 추가 보안 확인 등)을 띄우면 사용자가 그 화면을 직접 보고 푼다(결정 0017). 관리 페이지의 "브라우저 넘겨받기"와 같은 일을 앱에서 하는 메서드 넷이다.
+
+- **범위 `browser_handover`가 있어야 한다**(3.4, 기본 꺼짐). 없으면 `welcome.methods`에 보이지 않고 불러도 `forbidden`이다.
+- **브라우저를 켠 데몬에만 있다.** 브라우저가 꺼진 데몬은 `welcome.methods`에 넷 다 없고, 부르면 `unknown_method`다.
+- 넘겨받는 동안 **Lucia의 모든 실행이 브라우저를 쓰지 못한다.** 쓰려 하면 "사람이 브라우저 화면을 넘겨받아 쓰고 있다"는 답을 받고, 사용자의 로그인 요청도 그동안은 시도하지 못한다.
+- 한 번에 최대 15분이다(`max_seconds`). 지나면 데몬이 끝낸다(1분마다 확인, 다음 호출 때도 확인).
+- 넘겨받기는 데몬 전체에 하나다. 관리 페이지에서 시작한 것도 이 메서드로 보이고 끝낼 수 있다.
+- 시작과 끝은 활동 기록에 남는다. **넣은 글과 누른 자리는 기록하지 않는다.** 화면 이미지는 저장하지 않는다.
+- 화면은 HTTP로 받는다(8.9).
+
+#### `browser.handover.state`
+
+상태만 본다(시작하지 않는다). `params`는 없다.
+
+```json
+→ {"type": "call", "id": "b1", "method": "browser.handover.state"}
+← {"type": "result", "id": "b1", "ok": true,
+   "data": {"active": true, "left_seconds": 812, "max_seconds": 900,
+            "tabs": [{"id": "6F1A…", "url": "https://example.com/login", "title": "로그인"}]}}
+```
+
+| 필드 | 형식 | 설명 |
+|---|---|---|
+| `active` | 불 | 넘겨받는 중인가 |
+| `left_seconds` | 정수 \| null | 남은 초. 넘겨받는 중이 아니면 `null` |
+| `max_seconds` | 정수 | 한 번에 넘겨받을 수 있는 최대 시간(900) |
+| `tabs` | 배열 | 넘겨받는 중일 때만 채운다(아니면 `[]`). 항목은 `{id, url, title}`이다. `id`는 해석하지 말고 화면 받기(8.9)와 `input`의 `tab`에 그대로 쓴다. `url`·`title`은 가림 필터를 거친다. |
+
+- 새 창(본인인증 팝업 등)은 탭으로 남는다(결정 0017). 새 탭이 생겼는지는 `state`를 다시 불러 본다.
+
+#### `browser.handover.start`
+
+넘겨받는다. `params`는 없다. 답은 `state`와 같다.
+
+- 이미 넘겨받는 중이면 아무것도 바꾸지 않고 지금 상태를 답한다(남은 시간을 다시 재지 않는다).
+- 브라우저가 닫혀 있었으면 이 호출이 띄운다. 로그인하던 화면은 브라우저를 한동안 쓰지 않으면 닫혀 사라질 수 있다.
+- 오류: `failed`(시작하지 못했다. `message`는 사람이 읽는 글).
+
+#### `browser.handover.input`
+
+넘겨받은 화면에 입력을 하나 보낸다.
+
+| params | 형식 | 필수 | 설명 |
+|---|---|---|---|
+| `tab` | 문자열 | 예 | `state.tabs[].id` |
+| `kind` | 문자열 | 예 | `click`, `text`, `key`, `scroll` 가운데 하나 |
+| `x`, `y` | 정수 | `click`이면 예 | 누를 자리. 8.9의 이미지 위 픽셀 좌표 그대로다(브라우저 화면의 CSS 픽셀). 0 이상의 정수여야 하고, 소수나 음수는 `bad_params`다. |
+| `text` | 문자열 | `text`이면 예 | 1~2000자. 지금 **초점이 있는 칸**에 넣는다(먼저 `click`으로 그 칸을 누른다). Enter는 누르지 않는다. |
+| `key` | 문자열 | `key`이면 예 | `enter`, `tab`, `backspace`, `escape`, `up`, `down` 가운데 하나. 다른 값은 `failed`("모르는 키")다. |
+| `dy` | 정수 | `scroll`이면 예 | 양수는 아래, 음수는 위. 화면 픽셀. ±3000을 넘으면 거절하지 않고 그 값으로 맞춘다. 스크롤은 화면의 (200, 200) 자리에서 굴린다(자리를 고르지 못한다). |
+
+```json
+→ {"type": "call", "id": "b2", "method": "browser.handover.input",
+   "params": {"tab": "6F1A…", "kind": "click", "x": 412, "y": 288}}
+← {"type": "result", "id": "b2", "ok": true, "data": {"sent": true}}
+```
+
+- 답은 `{"sent": true}`뿐이다. 화면이 바뀌었는지는 화면을 다시 받아 본다. 관리 페이지는 입력 뒤 0.4초쯤 기다렸다가 화면을 다시 받는다.
+- `params`를 먼저 검사하고(`bad_params`), 그다음 넘겨받은 상태인지 본다(`not_active`).
+
+#### `browser.handover.end`
+
+넘겨받기를 끝낸다(그 뒤로 Lucia가 다시 브라우저를 쓴다). `params`는 없다. 넘겨받는 동안 열린 탭은 닫히고, 로그인 쿠키는 남는다.
+
+```json
+← {"type": "result", "id": "b3", "ok": true, "data": {"active": false, "warning": null}}
+```
+
+- 넘겨받는 중이 아니어도 성공이다. 앱은 화면을 떠날 때 늘 부른다.
+- `warning`은 탭을 닫지 못하는 등 정리에 실패했을 때의 사람이 읽는 글이다(없으면 `null`). 넘겨받기는 끝난 것이다.
+
+#### 오류
+
+| `error.code` | 경우 |
+|---|---|
+| `forbidden` | 토큰에 `browser_handover` 범위가 없다 |
+| `unknown_method` | 브라우저가 꺼진 데몬이다 |
+| `bad_params` | `input`의 `params`가 틀렸다(`tab`이 없다, `kind`를 모른다, 좌표·글·`dy`가 없거나 틀렸다) |
+| `not_active` | 넘겨받은 상태가 아니다(`input`). `start`를 먼저 부른다. 최대 시간이 지나 데몬이 끝낸 뒤에도 온다. |
+| `failed` | 시작하거나 입력하지 못했다(없는 탭, 모르는 키 포함). `message`는 사람이 읽는 글이다. |
+| `unavailable` | 브라우저를 쓸 수 없다. 지금 데몬에서는 `unknown_method`가 먼저 와서 WebSocket에서는 보이지 않는다(HTTP에서는 온다, 8.9). 오면 `failed`처럼 다룬다. |
+
+#### 앱이 부르는 순서(권장)
+
+```text
+사용자가 "화면 풀기"를 연다
+→ call browser.handover.start            (state를 돌려준다. tabs[0].id를 고른다)
+화면이 앞에 있는 동안 되풀이한다(화면 받기는 1초쯤 간격 [제안], 앞 요청이 끝난 뒤에 다음을 보낸다):
+  GET /v1/browser/handover/frame/{tab}   → 이미지를 그린다
+  사용자가 누르면      call browser.handover.input {tab, kind: "click", x, y}  → 0.4초쯤 뒤 화면을 다시 받는다
+  사용자가 글을 넣으면  먼저 그 칸을 click, 그다음 text(필요하면 key enter)
+  몇 초마다            call browser.handover.state → 새 탭이 생겼는지, left_seconds
+화면을 떠나거나 앱이 뒤로 가면: 화면 받기를 멈추고 call browser.handover.end
+```
+
+- 이미지를 줄여 그린다면 사용자가 누른 자리를 이미지의 실제 픽셀 크기로 되돌려 `x`, `y`로 보낸다.
+- `left_seconds`를 보이고, `not_active`(WebSocket)나 `409`(HTTP)가 오면 데몬이 끝낸 것이므로 화면을 닫는다.
+- 푼 뒤에는 `end`를 부르고, 로그인이 필요했던 일을 Lucia에게 다시 청한다.
 
 ---
 
@@ -721,6 +831,27 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 - 예전 ID의 그림도 한동안(최근 20개) 받을 수 있다. 지워진 ID는 `404 not_found`다.
 - 다른 요청과 같이 `Authorization: Bearer <토큰>`이 있어야 한다. 그림을 주소로 바로 그리는 이미지 로더를 쓰면 **인증 머리를 붙이게 설정**하거나, 앱이 직접 받아 캐시한 파일을 그린다.
 
+### 8.9 `GET /v1/browser/handover/frame/{tab}`: 넘겨받은 브라우저 화면(결정 0063)
+
+넘겨받는 중인 브라우저의 화면 한 장이다. 범위 `browser_handover`가 있는 토큰만 받는다. `{tab}`은 `browser.handover.state`의 `tabs[].id`다(뒤에 `.jpg`를 붙여도 된다. 떼고 읽는다).
+
+- `200`이면 본문이 JPEG다. 머리:
+  - `Content-Type: image/jpeg`
+  - `Cache-Control: no-store`
+  - `X-Content-Type-Options: nosniff`
+- 이미지는 브라우저의 보이는 화면 크기 그대로다. **이미지 위의 픽셀 좌표가 `browser.handover.input`의 `click` 좌표와 같다.** 크기는 응답마다 다를 수 있으니 받은 이미지의 실제 크기를 쓴다.
+- 오래 두고 쓰는 그림이 아니다. 디스크에 캐시하지 않고, 화면을 떠나면 버린다.
+- 다른 요청과 같이 `Authorization: Bearer <토큰>`이 있어야 한다. 이미지 로더를 쓰면 인증 머리를 붙이게 하거나 앱이 직접 받아 그린다.
+
+| 상태 | code | 경우 |
+|---|---|---|
+| 403 | `forbidden` | 토큰에 `browser_handover` 범위가 없다 |
+| 404 | `unavailable` | 브라우저가 꺼진 데몬이다 |
+| 409 | `not_active` | 넘겨받은 상태가 아니다. `browser.handover.start`를 먼저 부른다. |
+| 404 | `not_found` | 없는 탭이다(화면을 얻지 못한 경우도 같다) |
+
+호출 순서와 간격은 6.7의 "앱이 부르는 순서"를 본다.
+
 ---
 
 ## 9. 데이터 형식
@@ -736,8 +867,8 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
   "footer": "만료 11-19 15:00 · apr-1a2b",
   "tone": "pending",
   "buttons": [
-    {"action": "approve:apr-1a2b", "label": "보내기", "primary": true, "prompt": null},
-    {"action": "reject:apr-1a2b", "label": "거절", "primary": false, "prompt": null}
+    {"action": "approve:apr-1a2b", "label": "보내기", "primary": true, "prompt": null, "form": null},
+    {"action": "reject:apr-1a2b", "label": "거절", "primary": false, "prompt": null, "form": null}
   ]
 }
 ```
@@ -760,6 +891,7 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | `label` | 문자열 | 버튼 글 |
 | `primary` | 불 | 되돌릴 수 없는 일(보내기 등). 강조해 그린다. |
 | `prompt` | 객체 \| null | 있으면 누를 때 값을 하나 입력받는다(인증 코드 등). |
+| `form` | 객체 \| null | 있으면 누를 때 **여러 칸**을 입력받는다(아이디·비밀번호 등, 결정 0063). 아래. |
 
 `prompt`:
 
@@ -771,6 +903,74 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | `min_len`, `max_len` | 정수 | 입력 길이 범위. 앱이 먼저 확인한다. |
 
 - 입력값은 `press.input`으로 보낸다. 앱은 이 값을 저장하거나 로그에 남기지 않는다.
+
+`form`(결정 0063):
+
+| 필드 | 형식 | 설명 |
+|---|---|---|
+| `title` | 문자열 | 입력창 제목(고정 문구) |
+| `fields` | 배열 | 입력 칸. 위에서 아래 순서다. |
+
+`form.fields[]`:
+
+| 필드 | 형식 | 설명 |
+|---|---|---|
+| `key` | 문자열 | 값의 이름. `press.inputs`의 키로 그대로 쓴다. |
+| `label` | 문자열 | 칸 이름(고정 문구) |
+| `kind` | 문자열 | `text`(보이는 글, 아이디 등), `secret`(가려서 받는 글, 비밀번호), `check`(켜고 끄는 칸) |
+| `min_len`, `max_len` | 정수 | 글 칸의 길이 범위(자). 앱이 먼저 확인한다. `check`에는 뜻이 없다(0). |
+
+- **`form`이 있는 버튼은 `welcome.capabilities.forms`가 `true`일 때만 입력창을 연다.** 입력창을 그리지 못하는 앱은 그 버튼을 그리지 않고, 카드 본문의 링크로 안내한다(보통 버튼으로 그리면 눌러도 아무 일이 없다, 5.6). `kind`를 모르는 칸이 하나라도 있으면 같게 한다 [제안].
+- 입력값은 `press.inputs`로 보낸다: 모든 `key`에 값을 하나씩. `check` 칸은 불(`true`/`false`)로 보낸다. 앱은 이 값을 저장하거나 로그에 남기지 않는다(`secret`은 특히 13장).
+- `form`은 Discord에서는 그려지지 않는다. 앱이 끊겨 Discord DM으로 돌아간 카드에는 이 버튼이 없다(11장).
+
+#### 예: 로그인 입력 카드(`login_input`)
+
+알림 받을 곳이 이 앱이고 사이트에 로그인이 필요한데 저장된 로그인이 없을 때(또는 저장된 로그인이 사이트에 거절됐을 때) 온다.
+
+```json
+{
+  "headline": "🔐 **로그인이 필요합니다** 예시 사이트",
+  "title": "로그인 정보 입력",
+  "fields": [
+    {"name": "사이트", "value": "https://example.com", "inline": true},
+    {"name": "까닭", "value": "게시판을 읽으려면 로그인이 필요합니다.", "inline": false}
+  ],
+  "body": "사이트 주소가 맞는지 확인하고 [로그인 정보 입력]을 눌러 아이디와 비밀번호를 넣어 주세요(실패하면 3번까지). 넣은 값은 Lucia(모델)에게 가지 않고 데몬이 브라우저에 바로 넣습니다.\n버튼이 없거나 안 되면: https://<관리 페이지 주소>/site-login/<토큰>",
+  "footer": "요청 3f2a9c0e · 11-21 18:40까지 답이 없으면 로그인하지 않습니다",
+  "tone": "pending",
+  "buttons": [
+    {"action": "approval:3f2a9c0e5b7d4c1a8e6f0b2d9a4c7e13:approve", "label": "로그인 정보 입력", "primary": true,
+     "prompt": null,
+     "form": {"title": "로그인 정보 입력", "fields": [
+       {"key": "username", "label": "아이디", "kind": "text", "min_len": 1, "max_len": 100},
+       {"key": "password", "label": "비밀번호", "kind": "secret", "min_len": 1, "max_len": 200},
+       {"key": "save", "label": "이 로그인 저장(다음부터는 승인만)", "kind": "check", "min_len": 0, "max_len": 0}]}},
+    {"action": "approval:3f2a9c0e5b7d4c1a8e6f0b2d9a4c7e13:deny", "label": "취소", "primary": false,
+     "prompt": null, "form": null}
+  ]
+}
+```
+
+- 누르는 쪽: 사용자가 입력창에서 확인하면 `{"type": "press", "ref": …, "action": <첫 버튼의 action>, "inputs": {"username": "…", "password": "…", "save": true}}`를 보낸다(5.6).
+- 카드는 곧바로 닫힌다(`card_closed`, `headline`이 "⏳ 로그인하고 있습니다. 결과는 곧 알려 드립니다."). 이것은 "받았다"는 뜻이지 로그인이 됐다는 뜻이 아니다. 로그인은 데몬에서 떨어진 작업으로 돌고(결정 0038) 몇 초에서 수십 초가 걸린다.
+- **결과는 경우에 따라 다르게 온다. 결과를 기다리는 표시를 붙들어 두지 않는다.**
+
+| 결과 | 앱이 받는 것 |
+|---|---|
+| 로그인 성공 | "✅ …에 로그인했습니다. …" `text` |
+| 이미 로그인돼 있었다 | "✅ <사이트>: 이미 로그인돼 있었습니다. …" `text`(넣은 비밀번호는 확인하지 못해 저장하지 않는다) |
+| 인증 코드가 필요하다 | 인증 코드 카드(`prompt`가 있는 카드). `text`는 없다 |
+| 사이트가 사람 확인을 띄웠다 | "🧩 …" `text`(화면 넘겨받기 안내, 6.7) |
+| 사이트가 거절하는 등 다시 넣을 수 있는 실패 | "⚠️ … 로그인하지 못했습니다: …" `text`와 **새 카드**(새 `ref`, "앞선 시도" 칸에 까닭) |
+| 시도를 다 썼다(3번) | "⚠️ … 이 링크로 3번 시도해 닫았습니다. …" `text`만. 카드로 한 시도도 "이 링크"라고 쓰여 온다. 다시 하려면 Lucia에게 요청한다. |
+| 시도하지 못했다(빈 칸·너무 긴 값, 사람이 브라우저를 넘겨받는 중) | 새 카드만(`text`는 없고, 시도로 세지 않는다) |
+| 150초 안에 끝나지 않았다 | "⚠️ …" `text` + 새 카드(시도로 센다) |
+
+- 시도는 한 요청에 모두 3번이다(카드와 본문의 링크를 합쳐 센다). 링크에서 낸 실패에는, 먼저 올린 카드가 아직 열려 있으면 새 카드를 올리지 않는다(같은 요청의 열린 카드는 하나다).
+- 취소하면 `card_closed`("🚫 거절했습니다. 로그인하지 않았습니다.")가 오고, 같은 요청의 링크도 닫힌다. 답이 없어 만료되면 "⌛ 답이 없어 만료됐습니다. …"로 닫힌다(링크는 제 시간에 스스로 닫힌다).
+- 이 카드를 누를 때 요청이 이미 닫혔다면(링크에서 먼저 처리했거나, 시간이 지났거나, 시도를 다 썼다면) "❌ …"로 닫힌다.
+- 본문의 링크(`/site-login/<토큰>`)는 관리 페이지의 입력 링크와 같은 요청이다. 같은 일을 하는 다른 길이라, 카드에서 하든 링크에서 하든 시도 수는 합쳐 센다.
 - 승인 카드는 만료 시간이 있다. 답이 없으면 거부로 닫힌다(`card_closed`, "⌛ 답이 없어 만료됐습니다").
 
 ### 9.2 파일
@@ -857,6 +1057,7 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
   2. 끊겨 있어도 푸시를 쓸 수 있으면(데몬 자격 증명 + 이 앱의 푸시 토큰) 상자에 쌓고 푸시로 깨운다. 카드는 앱에서 누른다.
   3. 둘 다 아니면 **Discord DM으로 보낸다.** 그 글과 카드는 앱 상자에 들어가지 않는다. 카드는 Discord에서 누른다.
      - 기록(`history`)에는 남는다. 앱 대화에서 한 말의 답은 앱 대화 기록으로 남는다.
+     - 값을 여러 칸 받는 버튼(`form`, 9.1)은 Discord에서 그려지지 않는다. 로그인 입력 카드는 본문에 입력 링크를 함께 담아 그 길로 안내한다. Discord로는 비밀번호를 받지 않는다.
 - 소유자가 Discord DM에서 직접 한 대화의 답은 DM으로 간다.
 - 작업 스레드(긴 작업의 진행)는 Discord에만 있다.
 
@@ -904,6 +1105,13 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 - `card`는 `ref`로 저장한다. `card_closed`가 오면 같은 `ref`를 바꿔 그린다.
 - 버튼을 누르면 결과(`card_closed`)가 올 때까지 그 카드의 버튼을 잠근다. 잠깐 기다려도 결과가 없으면 다시 누를 수 있게 푼다.
 - 카드 내용(받는 사람, 본문 등)은 사용자가 무엇을 승인하는지 알 수 있게 줄이지 말고 보인다.
+- **입력 칸이 있는 버튼(`form`, 결정 0063)**:
+  - `capabilities.forms`가 `true`일 때만 입력창을 연다. 못 그리면 그 버튼을 그리지 않고 본문의 링크로 안내한다.
+  - `kind`대로 그린다: `text`는 보이는 글 칸, `secret`은 가려서 받는 칸(입력 종류를 비밀번호로), `check`는 켜고 끄는 칸. 칸 이름은 `label`이다. 칸마다 `min_len`~`max_len`을 보내기 전에 확인한다.
+  - `check` 칸의 처음 값은 정하지 않아 앱이 정한다. 관리 페이지의 입력 링크는 "저장해 두기"를 켠 채로 시작한다 [제안: 같게 한다]. 저장을 끈 채 로그인에 성공하면 그 사이트에 이미 저장돼 있던 로그인이 지워진다.
+  - 보낼 때는 `press.inputs`에 모든 `key`의 값을 담는다(`check`는 불). **글 값은 다듬지 않고 보낸다.**
+  - 보낸 뒤에는 `card_closed`가 올 때까지 그 카드의 버튼을 잠근다. 입력창의 값은 보낸 즉시 지운다(저장·로그·분석·오류 보고에 남기지 않는다, 13장).
+  - 카드가 닫혀도 로그인은 끝난 것이 아니다. 닫힌 카드의 "⏳ …"는 "받았다"는 뜻이다. 결과는 뒤에 `text` 알림이나 새 카드로 온다(9.1의 표, 길면 150초까지).
 
 ---
 
@@ -913,11 +1121,15 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 - 밖에서는 `wss`/`https`만 쓴다. 인증서 검증을 끄지 않는다.
 - `X-Forwarded-For`·`Forwarded` 머리를 보내지 않는다(2.2).
 - 카드의 값 입력(`prompt`, 인증 코드 등)은 저장하거나 로그에 남기지 않는다.
+- 입력 칸이 있는 카드(`form`, 결정 0063)의 값, 특히 `secret` 칸(비밀번호)은 `press.inputs`로 보내는 것 말고 어디에도 두지 않는다: 저장, 로그, 분석·오류 보고, 자동 완성 기록에 남기지 않고, 보낸 즉시 메모리에서 지운다. 데몬은 그 값을 Lucia(모델), 로그, 원장, 활동 기록, 앱으로 보내는 프레임 상자, 대화 기록에 넣지 않는다.
+- 집 안 주소(`ws`)로 보내는 값은 평문이다(2.3). 밖에서는 반드시 `wss`다.
 - 메시지와 카드의 마크다운을 HTML로 해석하지 않는다. 웹뷰로 그린다면 이스케이프한다.
 - 앱을 잃어버렸거나 토큰이 샜으면 관리 페이지에서 바로 취소한다.
   - "알림 받을 곳"이 이 앱이면, 토큰을 가진 사람은 승인 카드를 받아 누를 수 있다.
   - `security_mode` 범위가 있으면 권한 모드도 바꿀 수 있다.
+  - **`browser_handover` 범위가 있으면 로그인된 브라우저 세션을 보고 조작할 수 있다**(결정 0063). 관리 페이지를 밖에서 열려면 2단계 인증이 필요하지만 앱 토큰에는 두 번째 요소가 없다. 그래서 이 범위는 기본이 꺼짐이고 토큰마다 사용자가 켠다. 토큰이 샜다면 **바로 취소한다.** 이미 시작된 넘겨받기는 최대 시간(15분)이 지나거나 관리 페이지에서 "끝내기"를 누를 때까지 남지만, 취소한 토큰은 더 보거나 조작하지 못한다.
   - 주 모델은 범위 없이 바꿀 수 있다(더 큰 모델로 바꾸면 사용량을 빨리 쓴다). 바뀌면 알림 대화에 남는다.
+- 넘겨받은 브라우저의 화면 이미지(8.9)는 디스크에 캐시하거나 스크린샷·기록에 남기지 않는다. 화면을 떠나면 버리고 `browser.handover.end`를 부른다. 화면에는 사용자의 계정 정보가 보일 수 있다.
 - `event`와 `invoke` 답으로 보내는 외부 글(다른 앱의 알림 등)은 Lucia가 외부 자료로 다룬다. 다만 개인 정보이므로 보낼 것을 사용자가 고르게 한다.
 
 ---
@@ -942,6 +1154,11 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | `hello.features` | 32개, 이름 40자 |
 | 명령 답 기다림 | 5초 |
 | `session.compact` 답 기다림 | 실행 시간 제한 × 2 + 30초(운영 설정으로 630초). 정리 자체는 보통 20~75초 |
+| `press.inputs` | 칸 8개, 칸 이름 1~40자, 값 1000자 |
+| 로그인 입력 카드의 칸 | 아이디 1~100자, 비밀번호 1~200자(카드의 `form`이 알린다) |
+| 로그인 입력 카드·링크 | 10분(설정 `[browser] login_input_minutes`, 실패하면 다시 10분). 한 요청에 시도 3번(카드와 링크 합쳐), 로그인 하나에 150초 |
+| 브라우저 화면 넘겨받기 | 한 번에 최대 900초(15분) |
+| `browser.handover.input` | `text` 1~2000자, `dy` ±3000, `key` 여섯 가지(`enter`, `tab`, `backspace`, `escape`, `up`, `down`) |
 | 인증 실패 | 한 주소 10분에 10번이면 그 10분 동안 막음 |
 | 클라이언트 수 | 20 |
 | 글 푸시 간격 | 한 앱 10초 |
@@ -963,7 +1180,7 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | `unauthorized` | 토큰이 틀렸거나 취소됐다(인증 때, 또는 연결 중 취소) | 끊음 |
 | `too_many_attempts` | 그 주소가 인증 실패로 막혀 있다 | 끊음 |
 | `unsupported_role` | 받지 않는 역할 | 끊음 |
-| `bad_frame` | 깨진 JSON, 모르는 `type`, 바이너리 프레임, 두 번째 `hello`, 틀린 `presence.state` | 유지 |
+| `bad_frame` | 깨진 JSON, 모르는 `type`, 바이너리 프레임, 두 번째 `hello`, 틀린 `presence.state`, `press.inputs` 한도 초과(칸 8개·칸 이름 40자·값 1000자)나 모양이 틀림 | 유지 |
 | `empty` | 빈 말(글·파일 없음), 빈 이벤트 | 유지 |
 | `too_long` | 말이 8000자를 넘는다 | 유지 |
 | `bad_file` | 쓸 수 없는 파일 ID, 파일 10개 초과, 파일을 받지 않는 데몬 | 유지 |
@@ -978,12 +1195,14 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | code | 경우 |
 |---|---|
 | `unknown_method` | 없는 메서드 |
-| `forbidden` | 필요한 범위가 없다 |
+| `forbidden` | 필요한 범위가 없다(`security_mode`, `browser_handover`) |
 | `bad_params` | `params`가 틀렸다 |
 | `unknown_command` | 없는 명령 |
 | `timeout` | 처리기가 제때 답하지 않았다 |
 | `busy` | 같은 일이 이미 돌고 있다(`session.compact`) |
-| `failed` | 처리하지 못했다(저장소 오류 등) |
+| `not_active` | 넘겨받은 상태가 아니다(`browser.handover.input`, 6.7) |
+| `unavailable` | 브라우저를 쓸 수 없다(`browser.handover.*`, 6.7. WebSocket에서는 `unknown_method`가 먼저 온다) |
+| `failed` | 처리하지 못했다(저장소 오류, 브라우저 넘겨받기 시작·입력 실패 등) |
 | `unsupported` | 이 데몬이 하지 않는 일 |
 | `closed` | 데몬이 멈추는 중 |
 
@@ -995,8 +1214,10 @@ Lucia가 스스로 정한 프로필 그림의 정보다. `welcome.profile`, `/v1
 | 400 | `bad_params` | 기록·푸시 매개변수가 틀렸다 |
 | 400 | `bad_file` | 올린 파일이 비었거나 너무 크다 |
 | 401 | `unauthorized` | 토큰 문제 |
-| 403 | `forbidden` | 받지 않는 출처, 기기 토큰 |
-| 404 | `not_found` | 없는 파일, 남의 파일 |
+| 403 | `forbidden` | 받지 않는 출처, 기기 토큰, `browser_handover` 범위가 없는 토큰(8.9) |
+| 404 | `not_found` | 없는 파일, 남의 파일, 없는 넘겨받기 탭(8.9) |
+| 404 | `unavailable` | 브라우저가 꺼진 데몬(8.9) |
+| 409 | `not_active` | 넘겨받은 상태가 아니다(8.9) |
 | 410 | `gone` | 보관 기간이 지난 파일 |
 | 413 | `too_large` | 올린 본문이 상한을 넘었거나 끊겼다 |
 | 415, 422 | (프레임워크) | `PUT /v1/push`의 JSON 문제 |
@@ -1068,6 +1289,61 @@ POST /v1/files?name=%EC%98%81%EC%88%98%EC%A6%9D.jpg   (본문: JPEG)
 ← 201 {"id":"f_0a1b2c3d4e5f","name":"영수증.jpg","size":482113,"mime":"image/jpeg","kind":"image"}
 → {"type":"message","text":"이거 정리해 줘","files":["f_0a1b2c3d4e5f"],"id":"m2"}
 ← {"type":"accepted","id":"m2"}
+```
+
+### 17.5 사이트 로그인(입력 카드 → 인증 코드 → 사람 확인)(결정 0063)
+
+알림 받을 곳이 이 앱이고 `browser_handover` 범위가 켜져 있다고 하자. Lucia가 사이트에 로그인이 필요해 멈추면:
+
+```
+← {"type":"card","seq":10,"ref":"app:cl-3f9a0c12de:5b0e1f3a9c2d","card":{"title":"로그인 정보 입력",…,
+    "buttons":[{"action":"approval:3f2a…:approve","label":"로그인 정보 입력","form":{"title":"로그인 정보 입력","fields":[…]},…},
+               {"action":"approval:3f2a…:deny","label":"취소","form":null,…}]}}
+→ {"type":"ack","seq":10}
+(사용자가 입력창에 아이디·비밀번호를 넣고 확인. 앱은 확인할 때까지 값을 메모리에만 둔다)
+→ {"type":"press","ref":"app:cl-3f9a0c12de:5b0e1f3a9c2d","action":"approval:3f2a…:approve",
+   "inputs":{"username":"me","password":"…","save":true}}
+← {"type":"card_closed","seq":11,"ref":"app:cl-3f9a0c12de:5b0e1f3a9c2d",
+   "card":{"headline":"⏳ 로그인하고 있습니다. 결과는 곧 알려 드립니다.",…,"buttons":[]}}
+→ {"type":"ack","seq":11}
+(로그인에 몇 초에서 수십 초. 이 사이 앱은 아무것도 보내지 않는다. 결과는 아래 가운데 하나다. 전체는 9.1의 표)
+```
+
+가. 성공:
+
+```
+← {"type":"text","seq":12,"body":"✅ 예시 사이트에 로그인했습니다. 다음부터는 저장된 로그인을 승인만 하면 됩니다. 하던 일을 다시 말씀해 주세요."}
+```
+
+나. 인증 코드(OTP)가 필요하다(`prompt`가 있는 카드, 5.6의 `input`):
+
+```
+← {"type":"card","seq":12,"ref":"app:cl-3f9a0c12de:7c41d2e8b09f","card":{"title":"인증 코드 입력",…,
+    "buttons":[{"label":"코드 입력","prompt":{"title":"인증 코드 입력","label":"인증 코드",…},"form":null,…},{"label":"취소",…}]}}
+→ {"type":"press","ref":"app:cl-3f9a0c12de:7c41d2e8b09f","action":"approval:…:approve","input":"123456"}
+← {"type":"card_closed","seq":13,"ref":"app:cl-3f9a0c12de:7c41d2e8b09f","card":{…}}
+```
+
+다. 사이트가 사람 확인(캡차)을 띄웠다. 데몬은 알림 글만 보내고, 화면은 앱이 연다(6.7):
+
+```
+← {"type":"text","seq":12,"body":"🧩 예시 사이트이(가) 사람 확인(…)을 띄워 아직 로그인되지 않았습니다. 10분 안에 앱의 브라우저 화면 넘겨받기(또는 관리 페이지 \"브라우저 넘겨받기\")에서 그 화면을 직접 풀어 주세요(…): https://…/browser/handover"}
+→ {"type":"call","id":"b1","method":"browser.handover.start"}
+← {"type":"result","id":"b1","ok":true,"data":{"active":true,"left_seconds":899,"max_seconds":900,"tabs":[{"id":"6F1A…","url":"https://…","title":"…"}]}}
+GET /v1/browser/handover/frame/6F1A…            → 200 image/jpeg
+→ {"type":"call","id":"b2","method":"browser.handover.input","params":{"tab":"6F1A…","kind":"click","x":412,"y":288}}
+← {"type":"result","id":"b2","ok":true,"data":{"sent":true}}
+GET /v1/browser/handover/frame/6F1A…            → 200 image/jpeg (0.4초쯤 뒤)
+(… 사용자가 사람 확인을 푼다 …)
+→ {"type":"call","id":"b9","method":"browser.handover.end"}
+← {"type":"result","id":"b9","ok":true,"data":{"active":false,"warning":null}}
+```
+
+라. 실패해서 다시 넣을 수 있다(시도는 3번까지). 새 카드가 온다:
+
+```
+← {"type":"text","seq":12,"body":"⚠️ 예시 사이트 로그인하지 못했습니다: …. 새로 올린 카드에서 다시 넣을 수 있습니다."}
+← {"type":"card","seq":13,"ref":"app:cl-3f9a0c12de:9d2b6a41c0e7","card":{…,"fields":[…,{"name":"앞선 시도","value":"⚠️ …","inline":false}],…}}
 ```
 
 ---

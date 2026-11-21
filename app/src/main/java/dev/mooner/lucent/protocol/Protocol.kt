@@ -52,12 +52,37 @@ data class CardPrompt(
     @SerialName("max_len") val maxLen: Int = 200,
 )
 
+/** 여러 칸을 받는 버튼의 입력창(9.1, 결정 0063). 아이디·비밀번호 등. 값은 `press.inputs`로 보낸다. */
+@Serializable
+data class CardForm(
+    val title: String = "",
+    val fields: List<FormField> = emptyList(),
+)
+
+@Serializable
+data class FormField(
+    /** 값의 이름. `press.inputs`의 키로 그대로 쓴다. */
+    val key: String = "",
+    val label: String = "",
+    /** [TEXT](보이는 글), [SECRET](가려서 받는 글), [CHECK](켜고 끄는 칸). 그 밖은 모르는 칸이다. */
+    val kind: String = "",
+    @SerialName("min_len") val minLen: Int = 0,
+    @SerialName("max_len") val maxLen: Int = 0,
+) {
+    companion object {
+        const val TEXT = "text"
+        const val SECRET = "secret"
+        const val CHECK = "check"
+    }
+}
+
 @Serializable
 data class CardButton(
     val action: String,
     val label: String = "",
     val primary: Boolean = false,
     val prompt: CardPrompt? = null,
+    val form: CardForm? = null,
 )
 
 @Serializable
@@ -108,6 +133,8 @@ data class Capabilities(
     val buttons: Boolean = true,
     val edit: Boolean = true,
     val prompts: Boolean = true,
+    /** 여러 칸을 받는 버튼(`form`)을 쓰는 데몬인가. 없으면(false) `form`을 모르는 예전 데몬이다. */
+    val forms: Boolean = false,
     val attachments: Boolean = false,
     @SerialName("max_upload_bytes") val maxUploadBytes: Long = 31_457_280,
     @SerialName("max_message_files") val maxMessageFiles: Int = 10,
@@ -386,11 +413,21 @@ object ClientFrames {
         put("id", id)
     }.toString()
 
-    fun press(ref: String, action: String, input: String?): String = buildJsonObject {
+    /**
+     * 카드 버튼 누르기(5.6). 값을 하나 받는 버튼은 [input], 여러 칸을 받는 버튼은 [inputs](칸 이름 → 글이나 불)로 보낸다.
+     * [inputs]의 글은 다듬지 않은 그대로다.
+     */
+    fun press(ref: String, action: String, input: String?, inputs: Map<String, FormValue>? = null): String = buildJsonObject {
         put("type", "press")
         put("ref", ref)
         put("action", action)
         if (input != null) put("input", input)
+        if (inputs != null) put("inputs", buildJsonObject {
+            for ((key, value) in inputs) when (value) {
+                is FormValue.Text -> put(key, value.value)
+                is FormValue.Check -> put(key, value.on)
+            }
+        })
     }.toString()
 
     fun ack(seq: Long): String = buildJsonObject {
@@ -446,6 +483,8 @@ object ErrorCodes {
     const val BAD_REF = "bad_ref"
     const val CLOSED = "closed"
     const val FORBIDDEN = "forbidden"
+    /** 브라우저 화면을 넘겨받은 상태가 아니다(6.7, HTTP는 409). 데몬이 끝낸 뒤에도 온다. */
+    const val NOT_ACTIVE = "not_active"
     const val TIMEOUT = "timeout"
     const val BAD_PARAMS = "bad_params"
     const val UNKNOWN_COMMAND = "unknown_command"
@@ -480,5 +519,6 @@ fun describeError(code: String, fallback: String = ""): String = when (code) {
     ErrorCodes.BAD_PARAMS -> "요청 값이 올바르지 않아요"
     ErrorCodes.UNSUPPORTED -> "이 서버가 지원하지 않는 기능이에요"
     ErrorCodes.BUSY -> "이미 하고 있는 중이에요"
+    ErrorCodes.NOT_ACTIVE -> "브라우저 화면 넘겨받기가 끝났어요"
     else -> fallback.ifBlank { "처리하지 못했어요" }
 }
