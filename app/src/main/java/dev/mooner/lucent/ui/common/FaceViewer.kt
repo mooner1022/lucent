@@ -17,9 +17,10 @@ object FaceViewer {
     /** 루시아가 정한 프로필 그림의 원본이 있는 폴더(`ProfileStore`). 뷰어가 여는 것을 허락하는 자리다. */
     fun profileDir(context: Context) = File(context.filesDir, "profile")
 
-    fun open(context: Context, face: Face?) {
+    /** [name]은 보이는 이름(결정 0064)이다. 크게 보는 화면의 제목이 된다. */
+    fun open(context: Context, face: Face?, name: String) {
         val file = face?.file?.takeIf { it.isFile } ?: defaultPortrait(context) ?: return
-        ImageViewerActivity.start(context, file, context.getString(R.string.assistant_name))
+        ImageViewerActivity.start(context, file, name)
     }
 
     /**

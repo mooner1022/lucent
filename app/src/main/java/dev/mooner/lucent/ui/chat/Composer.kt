@@ -119,9 +119,9 @@ class Composer(
     val hasDraft: Boolean get() = binding.input.text.isNotBlank() || attachments.isNotEmpty()
 
     /** 지금 상황에 맞는 안내 글과 보내기 가능 여부. */
-    fun setContext(online: Boolean, hintRes: Int) {
+    fun setContext(online: Boolean, hint: CharSequence) {
         this.online = online
-        binding.input.setHint(hintRes)
+        if (binding.input.hint?.toString() != hint.toString()) binding.input.hint = hint
         updateSend()
     }
 

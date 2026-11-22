@@ -32,6 +32,7 @@ import coil.size.Scale
 import dev.mooner.lucent.R
 import dev.mooner.lucent.data.Delivery
 import dev.mooner.lucent.data.ExpressionStore
+import dev.mooner.lucent.data.HistoryLines
 import dev.mooner.lucent.data.StickerLine
 import dev.mooner.lucent.data.StickerRef
 import dev.mooner.lucent.data.StoredItem
@@ -134,6 +135,15 @@ class ChatAdapter(
             if (itemCount > 0) notifyItemRangeChanged(0, itemCount, FACE)
         }
 
+    /** 보이는 이름(결정 0064). "쓰는 중" 줄을 읽어 줄 때 쓴다. */
+    var name: String = ""
+        set(value) {
+            if (field == value) return
+            field = value
+            val typing = currentList.indexOf(Row.Typing)
+            if (typing >= 0) notifyItemChanged(typing)
+        }
+
     private fun showFace(view: ImageView) {
         val bitmap = face
         if (bitmap != null) view.setImageBitmap(bitmap) else view.setImageResource(R.drawable.ic_avatar_placeholder)
@@ -144,7 +154,10 @@ class ChatAdapter(
             b.avatar.setOnClickListener { actions.onFace() }
         }
 
-        fun bind() = showFace(b.avatar)
+        fun bind() {
+            showFace(b.avatar)
+            b.bubble.contentDescription = b.root.context.getString(R.string.chat_typing, name)
+        }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int, payloads: MutableList<Any>) {
@@ -214,6 +227,19 @@ class ChatAdapter(
         fun bind(row: Row.Message) {
             spaceAbove(b.root, row.avatar)
             val item = row.item
+            val ctx = b.root.context
+            // 다른 기기에서 한 내 말(결정 0067)이면 묶음의 첫 줄 위에 그 기기를 작게 적는다.
+            val device = deviceOf(item, ownConversation())
+            b.source.isVisible = device != null && row.avatar
+            b.source.text = when (device) {
+                null -> ""
+                is Device.Named -> ctx.getString(R.string.sent_from, device.name)
+                Device.Other -> ctx.getString(R.string.sent_from_other)
+                Device.Discord -> ctx.getString(R.string.sent_from, ctx.getString(R.string.source_discord))
+            }
+            // 함께 보낸 고른 글은 글이 아니라 표지 한 줄로만 보인다(고른 글 자체는 오지 않는다).
+            b.context.isVisible = item.contextNote != null
+            b.context.text = item.contextNote?.let { Plain.line(HistoryLines.contextLabel(it)) }.orEmpty()
             // 스티커는 말풍선 아래에 그림 한 장으로 놓인다. 보내는 중·실패 표시와 다시 보내기는 그대로 그 아래에 붙는다.
             bindSticker(b.sticker, b.stickerFallback, item.sticker, below = item.body.isNotBlank())
             b.text.isVisible = item.body.isNotBlank()
@@ -222,7 +248,6 @@ class ChatAdapter(
             b.text.setOnLongClickListener { actions.onMessageMenu(b.text, item); true }
             bindFiles(b.files, item.files)
 
-            val ctx = b.root.context
             val failed = item.delivery == Delivery.FAILED
             val unconfirmed = item.delivery == Delivery.UNCONFIRMED
             val text = when (item.delivery) {
@@ -268,7 +293,6 @@ class ChatAdapter(
             b.source.isVisible = source != null && row.avatar
             b.source.text = when (source) {
                 Source.DISCORD -> ctx.getString(R.string.source_discord)
-                Source.OTHER_APP -> ctx.getString(R.string.source_other_app)
                 Source.DAEMON -> ctx.getString(R.string.source_daemon)
                 null -> ""
             }
@@ -343,7 +367,8 @@ class ChatAdapter(
         if (files.isEmpty()) return
         val inflater = LayoutInflater.from(container.context)
         for (file in files) {
-            if (file.isImage) {
+            // 기록에 보인 파일 가운데 지워졌거나 이 기기에서 받을 수 없는 것은 이름만 있는 줄이다(사양 6.2).
+            if (file.isImage && file.available) {
                 val ib = ItemImageBinding.inflate(inflater, container, false)
                 ib.image.contentDescription = file.name
                 ib.image.setOnClickListener { actions.onOpenFile(file) }
@@ -355,6 +380,7 @@ class ChatAdapter(
                 fb.thumb.setImageResource(FileIcons.of(file))
                 fb.name.text = file.name
                 fb.meta.text = Format.fileMeta(container.context, file)
+                fb.save.isVisible = file.available
                 fb.root.setOnClickListener { actions.onOpenFile(file) }
                 fb.save.setOnClickListener { actions.onSaveFile(file) }
                 container.addView(fb.root)

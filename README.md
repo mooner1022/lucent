@@ -1,10 +1,11 @@
 # Lucent
 
-Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클라이언트. 접속 API 사양은 [`docs/app-api.md`](docs/app-api.md)(프로토콜 판 2)이고, 그 뒤에 바뀐 것은 [`docs/app-api-changes.md`](docs/app-api-changes.md)에 있다(주 모델 고르기, 바꾸기 전에 대화 정리하기, 앱이 내준 기능을 루시아가 부르기, 루시아의 프로필 그림).
+Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클라이언트. 접속 API 사양은 [`docs/app-api.md`](docs/app-api.md)(프로토콜 판 2)이고, 그 뒤에 바뀐 것은 [`docs/app-api-changes.md`](docs/app-api-changes.md)에 있다(주 모델 고르기, 바꾸기 전에 대화 정리하기, 앱이 내준 기능을 루시아가 부르기, 루시아의 프로필 그림과 보이는 이름, 기기가 여럿이어도 한 대화).
 
 - 대화: Discord와 같은 루시아, 같은 기억. 진행 안내, 파일, 승인 카드(버튼·값 입력)를 받는다. 그림·마크다운·글 파일은 앱 안에서 미리 본다. 데몬이 관리하는 커스텀 이모지와 스티커를 함께 쓴다(규격 [`docs/app-expressions.md`](docs/app-expressions.md), 앱 쪽 구현 [`docs/emotes.md`](docs/emotes.md)).
 - 사이트 로그인: 루시아가 사이트에 로그인해야 할 때 카드의 입력창에서 아이디와 비밀번호를 넣는다(값은 보내는 것 말고 어디에도 남기지 않는다). 사이트가 사람 확인(캡차)을 띄우면 데몬의 브라우저 화면을 넘겨받아 직접 누르고 적어 푼다(토큰에 `browser_handover` 범위가 있을 때).
 - 루시아의 얼굴: 루시아가 스스로 정한 프로필 그림을 받아 머리말·대화 줄·빈 화면·알림에 쓴다. 정한 그림이 없으면 앱의 기본 모습이다([`docs/design.md`](docs/design.md) 10장).
+- 한 대화: 데스크톱 앱 등 다른 기기에서 한 말과 그 답도 같은 타임라인에 보인다(그 기기를 말풍선 위에 적는다). 대화 화면을 보면 봤다고 알리고(`seen`), 다른 기기에서 본 알림은 치운다([`docs/push.md`](docs/push.md)).
 - 휴대폰 기능: 사용자가 켠 것만 루시아에게 내준다. 지금 위치, 휴대폰에 온 알림 읽기, 답장 단추가 있는 메신저 알림에 답장(보내기 전에 묻는다). [`docs/phone-tools.md`](docs/phone-tools.md)
 - 연결: WebSocket(`/v1/ws`)과 HTTP(`/v1/...`). 집 안(LAN·VPN)과 밖(공개 주소)을 둘 다 저장해 두고 닿는 쪽으로 붙는다.
 - 끊김: `seq`·`ack`·`hello.resume`으로 놓친 프레임을 이어 받고, 앱이 꺼져 있으면 FCM이 깨운다(설정 필요, [`docs/push.md`](docs/push.md)).
@@ -14,7 +15,7 @@ Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클
 
 ```sh
 ./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk (applicationId dev.mooner.lucent.debug)
-./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림·Firebase 값·입력 칸이 있는 카드·브라우저 화면 넘겨받기 시험(246개)
+./gradlew :app:testDebugUnitTest    # 프로토콜·저장소·연결·화면 묶음·장면·하늘·이모지·스티커·파일 미리보기·마크다운 표·그림 자리·명령(권한 모드, 주 모델)과 대화 정리·휴대폰 기능·프로필 그림과 이름·한 대화(sent, seen, 기록 맞추기)·Firebase 값·입력 칸이 있는 카드·브라우저 화면 넘겨받기 시험(277개)
 ./gradlew :app:lintDebug
 ```
 
@@ -26,12 +27,12 @@ Lucia(홈서버에서 도는 1인용 비서 에이전트)의 안드로이드 클
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r tools/fake-lucia/requirements.txt
-.venv/bin/python -u tools/fake-lucia/server.py --port 18790   # --scopes security_mode,app_tools: 권한 모드 바꾸기, 휴대폰 기능 부르기. --no-profile: 프로필 그림이 없는 예전 데몬
+.venv/bin/python -u tools/fake-lucia/server.py --port 18790   # --scopes security_mode,app_tools: 권한 모드 바꾸기, 휴대폰 기능 부르기. --no-profile: 프로필 그림이 없는 예전 데몬. --no-shared: 한 대화·seen이 없는 예전 데몬
 # 앱에서: 집 안 주소 <호스트 IP>:18790, 토큰은 서버가 출력하는 값
 ```
 
 말에 `card`, `code`, `file`, `image`, `preview`, `long`, `note`, `emoji`, `dropme`, `revoke`, `where`, `notices`, `avatar`(루시아가 프로필 그림을 바꾼다), `noavatar`(없앤다)를 넣으면 시나리오가 돈다(한글 낱말도 된다).
-`/_dev/send?kind=text&body=..`, `/_dev/drop`, `/_dev/reset`, `/_dev/state`, `/_dev/slow?ms=..`(느린 내려받기), `/_dev/fail?n=..`(내려받기 실패), `/_dev/invoke?method=..&params=..`(루시아가 휴대폰 기능을 부른 것처럼), `/_dev/profile?set=1|2|big|photo|wide|bad|huge|gone|none`(프로필 그림 바꾸기)는 시험용 조작 입구다(사양에 없다).
+`/_dev/send?kind=text&body=..`, `/_dev/drop`, `/_dev/reset`, `/_dev/state`, `/_dev/slow?ms=..`(느린 내려받기), `/_dev/fail?n=..`(내려받기 실패), `/_dev/invoke?method=..&params=..`(루시아가 휴대폰 기능을 부른 것처럼), `/_dev/profile?set=1|2|big|photo|wide|bad|huge|gone|none`(프로필 그림 바꾸기)·`?name=..`(보이는 이름), `/_dev/desk?body=..`(다른 기기에서 한 말과 그 답), `/_dev/alert?seq=..`, `/_dev/seen?seq=..`는 시험용 조작 입구다(사양에 없다).
 
 ## 구조
 
@@ -39,8 +40,8 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/fake-lucia/requirements.
 |---|---|
 | `protocol/` | 프레임·데이터 형식(사양 5~9장), 파서·인코더. 모르는 필드·`type`은 무시 |
 | `net/` | `GatewayClient`(WebSocket, 백오프·핑·길 두 개), `GatewayApi`(HTTP), `AddressPolicy`(평문 허용 범위) |
-| `data/` | `ChatStore`(SQLite, `lastSeq`와 프레임을 한 트랜잭션에), `AppSettings`(Keystore), `ExpressionStore`(이모지·스티커 목록과 그림의 기기 사본), `ProfileStore`(루시아가 정한 프로필 그림의 기기 사본), `Expressions`(목록에서 찾기, 글 속 `:name:`과 기록의 스티커 줄 읽기), `FilePreviews`(앱 안에서 보일 파일 가리기, 넘길 때의 종류, 파일 줄의 아이콘 갈래, 글 파일 읽기와 줄 꺾기), `MarkdownBlocks`(마크다운에서 표 가르기), `Commands`(명령의 지금 값·선택지 이름, 모델을 바꾸기 전에 대화 정리를 권할지, 정리의 답에 따라 할 일) |
-| `LucentHub` | 연결·저장·알림·푸시를 묶는 중심(StarLight의 `AgentHub` 자리). 프레임을 순서대로 처리하고 ack. 루시아가 부른 휴대폰 기능을 넘기고 답장 물음을 쥔다 |
+| `data/` | `ChatStore`(SQLite, `lastSeq`와 프레임을 한 트랜잭션에), `AppSettings`(Keystore), `ExpressionStore`(이모지·스티커 목록과 그림의 기기 사본), `ProfileStore`(프로필 그림과 보이는 이름의 기기 사본), `HistoryLines`(기록 본문의 설명 줄, 기록 항목을 화면의 줄로), `Expressions`(목록에서 찾기, 글 속 `:name:`과 기록의 스티커 줄 읽기), `FilePreviews`(앱 안에서 보일 파일 가리기, 넘길 때의 종류, 파일 줄의 아이콘 갈래, 글 파일 읽기와 줄 꺾기), `MarkdownBlocks`(마크다운에서 표 가르기), `Commands`(명령의 지금 값·선택지 이름, 모델을 바꾸기 전에 대화 정리를 권할지, 정리의 답에 따라 할 일) |
+| `LucentHub` | 연결·저장·알림·푸시를 묶는 중심(StarLight의 `AgentHub` 자리). 프레임을 순서대로 처리하고 ack. 대화 화면을 보면 `seen`을 보내고, 다른 기기에서 본 알림을 치운다(규칙은 `notify/Seen`). 루시아가 부른 휴대폰 기능을 넘기고 답장 물음을 쥔다 |
 | `tools/` | 루시아에게 내주는 휴대폰 기능(사양 7.2): 목록(`ToolSpecs`), 처리(`PhoneTools`), 위치(`LocationReader`), 알림 리스너(`NotificationWatcher`)와 기록(`NotificationLog`), 알림 읽기와 답장 단추(`NoticeDigest`, `NoticeReplies`) |
 | `ui/chat` | 대화 화면. `ChatScene`이 지금 상황에서 화면이 무엇을 보일지 정하고, `ChatRows`가 저장된 줄을 화면의 줄로 바꾼다. `AddSheet`(+ 단추의 시트), `ExpressionPanel`(키보드 자리의 이모지·스티커 판), `ImageBox`(대화 속 그림의 자리) |
 | `ui/sky` | 하늘 머리말(`SkyView`: 시각의 장면, 실제 월령의 달), 아바타 고리(`PresenceAvatarView`), 설정·연결 화면의 머리말(`PageSky`) |

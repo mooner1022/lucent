@@ -10,6 +10,7 @@ import dev.mooner.lucent.R
 import dev.mooner.lucent.net.ApiException
 import dev.mooner.lucent.net.GatewayApi
 import dev.mooner.lucent.protocol.Avatar
+import dev.mooner.lucent.ui.common.Plain
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,8 @@ class Face(val id: String, val large: Bitmap, val small: Bitmap, val file: File)
  *   남고, 다음 `welcome`에서 다시 받는다. 그림이 없어졌다고 들으면(`avatar: null`) 바로 기본 모습으로 돌아간다.
  * - 연결이 없어도 마지막으로 받은 그림을 보인다. 무엇이 지금 그림인지는 따로 적어 두지 않고, 남아 있는 파일이 말한다.
  * - 화면은 [face]만 본다.
+ * - 보이는 이름(결정 0064)도 여기 둔다: 사용자가 관리 페이지에서 정한 이름이고, 화면은 [name]만 본다(null이면 앱의 기본
+ *   이름). 연결하지 못해도 마지막으로 받은 이름을 보이도록 파일 하나에 적어 둔다.
  */
 class ProfileStore(
     context: Context,
@@ -60,6 +63,11 @@ class ProfileStore(
 ) {
 
     private val dir = File(context.filesDir, "profile")
+    private val nameFile = File(context.filesDir, "profile-name")
+
+    private val _name = MutableStateFlow(runCatching { cleanName(nameFile.takeIf { it.isFile }?.readText()) }.getOrNull())
+    /** 지금 보일 이름. null이면 앱의 기본 이름이다. */
+    val name: StateFlow<String?> = _name.asStateFlow()
 
     private val _face = MutableStateFlow<Face?>(null)
     /** 지금 보일 그림. null이면 앱의 기본 모습이다. */
@@ -150,6 +158,19 @@ class ProfileStore(
         }
     }
 
+    /**
+     * 데몬이 알려 준 이름(`welcome.profile.name`, `profile` 프레임의 `name`). 이름이 붙기 전의 데몬이거나 프로필 기능이 없는
+     * 데몬이면 null을 넘긴다: 앱의 기본 이름으로 돌아간다.
+     */
+    fun applyName(raw: String?) {
+        val name = cleanName(raw)
+        synchronized(nameFile) {
+            if (name == _name.value) return
+            _name.value = name
+            runCatching { if (name == null) nameFile.delete() else nameFile.writeText(name) }
+        }
+    }
+
     private fun stopFetching() {
         fetching?.second?.cancel()
         fetching = null
@@ -203,11 +224,29 @@ class ProfileStore(
             _face.value = null
             dir.deleteRecursively()
         }
+        applyName(null)
     }
 
     companion object {
         private const val TAG = "ProfileStore"
         private val RETRY_MS = listOf(3_000L, 15_000L, 60_000L)
+
+        /** 이름의 상한(14장): 한 줄 24자. */
+        const val NAME_MAX = 24
+
+        /**
+         * 화면에 보일 이름으로 다듬는다. 앱이 그리는 글이라 이모지를 지우고(`Plain`), 줄바꿈과 이어진 공백은 하나로 줄이고,
+         * 24자를 넘으면 자른다. 남는 것이 없으면 null(기본 이름)이다.
+         */
+        fun cleanName(raw: String?): String? {
+            if (raw == null) return null
+            val line = Plain.line(raw).replace(WHITESPACE, " ").trim()
+            if (line.isEmpty()) return null
+            val end = if (line.codePointCount(0, line.length) > NAME_MAX) line.offsetByCodePoints(0, NAME_MAX) else line.length
+            return line.substring(0, end).trim().ifEmpty { null }
+        }
+
+        private val WHITESPACE = Regex("""\s+""")
 
         /** 그림의 한 변이 이보다 크면 읽지 않는다(사양의 상한은 2048px). */
         private const val MAX_SIDE = 8_192

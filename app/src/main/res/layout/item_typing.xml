@@ -18,12 +18,13 @@
         android:src="@drawable/ic_avatar_placeholder"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Lucent.Image"/>
 
+    <!-- 읽어 주는 글(이름이 든 "쓰는 중")은 목록이 정한다(ChatAdapter.name). -->
     <FrameLayout
+        android:id="@+id/bubble"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/space_s"
         android:background="@drawable/bg_bubble_lucia"
-        android:contentDescription="@string/chat_typing"
         android:paddingHorizontal="@dimen/space_l"
         android:paddingVertical="@dimen/space_m">
 

@@ -73,11 +73,13 @@ class GatewayApi(
 
     suspend fun me(): Welcome = onRoutes { base, token -> getJson("$base/v1/me", token, Welcome.serializer()) }
 
-    suspend fun history(before: Long?, limit: Int, scope: String): HistoryPage = onRoutes { base, token ->
+    /** [shape]가 2면 조각(`parts`)과 파일(`files`)이 실린 모양으로 받는다(6.2). `capabilities.history_shape`가 있을 때만 준다. */
+    suspend fun history(before: Long?, limit: Int, scope: String, shape: Int? = null): HistoryPage = onRoutes { base, token ->
         val url = "$base/v1/history".toHttpUrl().newBuilder()
             .addQueryParameter("limit", limit.toString())
             .addQueryParameter("scope", scope)
             .apply { if (before != null) addQueryParameter("before", before.toString()) }
+            .apply { if (shape != null) addQueryParameter("shape", shape.toString()) }
             .build()
         getJson(url.toString(), token, HistoryPage.serializer())
     }

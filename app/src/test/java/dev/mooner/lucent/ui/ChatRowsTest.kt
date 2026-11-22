@@ -5,9 +5,11 @@ import dev.mooner.lucent.data.Sender
 import dev.mooner.lucent.data.StickerRef
 import dev.mooner.lucent.data.StoredItem
 import dev.mooner.lucent.protocol.Card
+import dev.mooner.lucent.ui.chat.Device
 import dev.mooner.lucent.ui.chat.Row
 import dev.mooner.lucent.ui.chat.Source
 import dev.mooner.lucent.ui.chat.buildRows
+import dev.mooner.lucent.ui.chat.deviceOf
 import dev.mooner.lucent.ui.chat.isLongForm
 import dev.mooner.lucent.ui.chat.sourceOf
 import org.junit.Assert.assertEquals
@@ -28,8 +30,11 @@ class ChatRowsTest {
 
     private fun item(
         at: Long, sender: Sender = Sender.LUCIA, kind: Kind = Kind.TEXT, body: String = "글",
-        ref: String? = null, card: Card? = null, conversation: String? = null,
-    ) = StoredItem(id = nextId++, key = "k$nextId", at = at, sender = sender, kind = kind, body = body, ref = ref, card = card, conversation = conversation)
+        ref: String? = null, card: Card? = null, conversation: String? = null, device: String? = null,
+    ) = StoredItem(
+        id = nextId++, key = "k$nextId", at = at, sender = sender, kind = kind, body = body, ref = ref, card = card,
+        conversation = conversation, device = device,
+    )
 
     private fun rows(vararg items: StoredItem, typing: Boolean = false, pressing: Set<String> = emptySet()) =
         buildRows(items.toList(), typing, pressing, zone)
@@ -82,13 +87,46 @@ class ChatRowsTest {
         assertFalse(rows(item(at(19, 10, 0))).any { it === Row.Typing })
     }
 
-    @Test fun `출처 표시 - 이 앱의 대화는 없고 Discord와 데몬은 있다`() {
+    @Test fun `출처 표시 - 앱 대화는 기기가 달라도 하나라 없고, Discord와 데몬은 있다`() {
         val own = "app:cl-1"
         assertNull(sourceOf(item(0, conversation = own), own))
         assertNull(sourceOf(item(0, conversation = null), own))
         assertEquals(Source.DISCORD, sourceOf(item(0, conversation = "discord:dm:123"), own))
-        assertEquals(Source.OTHER_APP, sourceOf(item(0, conversation = "app:cl-2"), own))
+        // 다른 기기에서 한 말의 답(결정 0067)과 앱 모두의 대화(브리핑, `app:*`)도 이 앱의 타임라인이다.
+        assertNull(sourceOf(item(0, conversation = "app:cl-2"), own))
+        assertNull(sourceOf(item(0, conversation = "app:*"), own))
         assertEquals(Source.DAEMON, sourceOf(item(0, sender = Sender.DAEMON), own))
+    }
+
+    @Test fun `내 말을 한 곳 - 이 기기가 아니면 그 기기를 적는다`() {
+        val own = "app:cl-1"
+        fun mine(conversation: String?, device: String? = null) = item(0, sender = Sender.USER, conversation = conversation, device = device)
+        assertNull(deviceOf(mine(null), own))
+        assertNull(deviceOf(mine(own), own))
+        assertNull(deviceOf(mine("app:*"), own))
+        assertEquals(Device.Named("데스크톱 앱"), deviceOf(mine("app:cl-2", "데스크톱 앱"), own))
+        // 기록에서 읽은 다른 기기의 말에는 이름이 없다.
+        assertEquals(Device.Other, deviceOf(mine("app:cl-2"), own))
+        assertEquals(Device.Discord, deviceOf(mine("discord:dm:9"), own))
+        // 이 앱의 대화를 아직 모르면 이름이 있는 것만 적는다.
+        assertNull(deviceOf(mine("app:cl-2"), null))
+        // 이름의 이모지는 지운다(앱이 그리는 글).
+        assertEquals(Device.Named("노트북"), deviceOf(mine("app:cl-2", "\uD83D\uDCBB 노트북"), own))
+        // 루시아의 말에는 없다.
+        assertNull(deviceOf(item(0, conversation = "app:cl-2"), own))
+    }
+
+    @Test fun `다른 기기에서 한 내 말은 이 기기의 말과 묶이지 않는다`() {
+        val own = "app:cl-1"
+        val r = buildRows(
+            listOf(
+                item(at(19, 10, 0), sender = Sender.USER, conversation = null),
+                item(at(19, 10, 1), sender = Sender.USER, conversation = "app:cl-2", device = "데스크톱 앱"),
+                item(at(19, 10, 2), sender = Sender.USER, conversation = "app:cl-2", device = "데스크톱 앱"),
+            ),
+            typing = false, pressing = emptySet(), zone = zone, ownConversation = own,
+        ).filterIsInstance<Row.Message>()
+        assertEquals(listOf(true, true, false), r.map { it.avatar })
     }
 
     @Test fun `출처가 다른 말은 같은 묶음이 아니다`() {

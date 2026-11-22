@@ -48,8 +48,15 @@ object Format {
         },
     )
 
-    fun fileMeta(context: Context, file: FileRef): String =
-        context.getString(R.string.file_meta, size(context, file.size), kind(context, file))
+    /** 크기 · 종류. 기록에 보인 파일이 지워졌거나 이 기기에서 받을 수 없으면 종류 대신 그 까닭을 적는다(사양 6.2). */
+    fun fileMeta(context: Context, file: FileRef): String {
+        val second = when {
+            file.gone -> context.getString(R.string.file_state_gone)
+            !file.reachable -> context.getString(R.string.file_state_unreachable)
+            else -> kind(context, file)
+        }
+        return context.getString(R.string.file_meta, size(context, file.size), second)
+    }
 
     /** 몇 초 뒤 다시 시도한다는 안내용. */
     fun secondsUntil(at: Long): Int = ((at - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(0)

@@ -37,7 +37,19 @@
     알게 된다). 그림 받기도 /_dev/slow·/_dev/fail을 따른다. `--no-profile`을 주면 이 기능이 없는 예전 데몬처럼 군다
     (`profile` 필드 없음, 두 주소는 501).
 
-실행:  python3 server.py [--port 8790] [--scopes security_mode,app_tools] [--no-expressions] [--legacy-commands] [--no-profile]
+  - 앱은 기기가 여럿이어도 한 대화다(결정 0066·0067). 다른 기기("데스크톱 앱")를 흉내 낸다:
+    /_dev/desk?body=...(&files=1&sticker=축하&context=1&reply=0) 는 그 기기에서 사용자가 말한 것처럼 휴대폰에 `sent`를 보내고,
+    루시아가 그 대화로 답한다(`conversation`이 붙고, 데스크톱이 울리므로 휴대폰에는 `"alert": false`).
+    /_dev/send?...&alert=0(&conv=app:<ID>) 은 놓아 두는 프레임, /_dev/alert?seq=N 은 놓아 둔 것을 지금 알리라는 `alert`,
+    /_dev/seen?seq=N 은 다른 기기에서 그 번호까지 봤다는 `seen`(끊겨 있으면 `clear` 푸시를 보낸 것으로 찍기만 한다)이다.
+    앱이 보낸 `seen`은 /_dev/state 의 `seen`(마지막 번호)·`seen_frames`(받은 수)로 본다. 기록(`history`)은 `shape: 2`이면
+    조각(`parts`)과 파일(`files`)을 싣고, `scope: app`이 모든 앱 대화(다른 기기, `app:*`)다.
+    `--no-shared`를 주면 이 확장이 없는 예전 데몬처럼 군다(`seen`·`shared_conversation`·`history_shape` 표시가 없고,
+    앱이 `seen`을 보내면 모르는 type이라 `bad_frame`으로 답한다).
+  - 프로필의 보이는 이름(결정 0064): 처음은 "Lucia"다. /_dev/profile?name=달빛 으로 바꾸고(`profile` 프레임에 이름과 그림이 함께 간다),
+    ?name= 처럼 비우면 이름이 붙기 전의 데몬처럼 `name`을 빼고 보낸다.
+
+실행:  python3 server.py [--port 8790] [--scopes security_mode,app_tools] [--no-expressions] [--legacy-commands] [--no-profile] [--no-shared]
 """
 import argparse, asyncio, hashlib, io, json, os, re, struct, time, uuid, zipfile, zlib
 from aiohttp import web, WSMsgType
@@ -127,7 +139,17 @@ def clean_tools(items):
 # ---------------------------------------------------------------- 프로필 그림(사양 8.7, 8.8, 결정 0060)
 
 PROFILE_ON = True
-PROFILE = {"avatar": None, "files": {}}
+PROFILE = {"avatar": None, "files": {}, "name": "Lucia"}
+# 한 대화(결정 0066·0067). 꺼 두면(--no-shared) 예전 데몬이다.
+SHARED_ON = True
+DESK = "cl-desk0000aa"
+DESK_CONV = f"app:{DESK}"
+
+
+def profile_body():
+    body = {"avatar": PROFILE["avatar"]}
+    if PROFILE["name"]: body = {"name": PROFILE["name"], **body}
+    return body
 AVATAR_MAX = 3 * 1024 * 1024
 
 
@@ -185,7 +207,7 @@ def set_avatar(kind, quiet=False):
         PROFILE["avatar"] = {"id": aid, "mime": "image/png", "width": w, "height": h, "size": len(data), "updated_at": iso_z(time.time())}
     print(f"[profile] avatar={PROFILE['avatar'] and PROFILE['avatar']['id']} quiet={quiet}")
     if PROFILE_ON and not quiet:
-        push_frame({"type": "profile", "avatar": PROFILE["avatar"]}, numbered=False)
+        push_frame({"type": "profile", **profile_body()}, numbered=False)
     return PROFILE["avatar"]
 
 
@@ -229,7 +251,7 @@ def sticker_line(s):
 def reset(empty=False):
     state.clear()
     state.update(seq=0, acked=0, box=[], files={}, history=[], hid=1200, push=None, ws=None, presence="foreground",
-                 mode="기본", model="default", cards={})
+                 mode="기본", model="default", cards={}, seen=None, seen_frames=0, clears=[])
     now = time.time()
     seed = [
         ("user", CONV, "내일 일정 알려 줘", -3600 * 5),
@@ -245,6 +267,13 @@ def reset(empty=False):
             ("lucia", CONV, "정말 축하해요! 그동안 고생 많았어요 :spark:\n[스티커:꾸벅]", -1490),
             ("lucia", CONV, "이건 예전에 쓰던 거예요.\n[스티커:사라진 스티커]", -1480),
         ]
+    if SHARED_ON:
+        # 다른 기기(데스크톱)에서 한 말과 그 답, 앱 모두에 둔 브리핑(결정 0066·0067). 기록에만 있다.
+        seed += [
+            ("user", DESK_CONV, "회의 자료 정리해 줘\n[고른 글 120자 함께 보냄 · msedge.exe]", -1200),
+            ("lucia", DESK_CONV, "정리했어요. 세 장으로 줄였어요.", -1190),
+            ("daemon", "app:*", "오후 3시 디자인 리뷰 10분 전이에요.", -900),
+        ]
     if empty:
         seed = []  # 처음 쓰는 것처럼 기록이 없다(/_dev/reset?empty=1): 앱의 빈 화면을 볼 때 쓴다.
     for frm, conv, body, dt in seed:
@@ -255,9 +284,15 @@ def iso(t):
     return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(t)) + ".000000+00:00"
 
 
-def add_history(frm, conv, body, t=None):
+def add_history(frm, conv, body, t=None, parts=None, files=None):
+    """[parts]는 여러 `text` 프레임으로 나뉘어 간 조각, [files]는 붙은 파일이다(`shape: 2`, 6.2). 본문에는 예전처럼
+    조각이 빈 줄로 이어지고 파일 설명 줄이 붙는다."""
     state["hid"] += 1
-    state["history"].append({"id": state["hid"], "at": iso(t or time.time()), "from": frm, "conversation": conv, "body": body})
+    if files: body = (body + "\n" if body else "") + "[첨부: " + ", ".join(f["name"] for f in files) + "]"
+    h = {"id": state["hid"], "at": iso(t or time.time()), "from": frm, "conversation": conv, "body": body}
+    if parts and len(parts) > 1: h["parts"] = parts
+    if files: h["files"] = files
+    state["history"].append(h)
 
 
 def welcome():
@@ -266,7 +301,7 @@ def welcome():
         c = catalog()
         w["expressions"] = {"version": c["version"], "emoji": len(c["emoji"]), "stickers": len(c["stickers"])}
     if PROFILE_ON:
-        w["profile"] = {"avatar": PROFILE["avatar"]}
+        w["profile"] = profile_body()
     return w
 
 
@@ -276,7 +311,8 @@ def _welcome():
                               + (HAND_METHODS if "browser_handover" in SCOPES else [])),
             "features": TOOLS["features"], "tools": [t["name"] for t in TOOLS["list"]], "notify_target": True, "push": {"available": True, "registered": state["push"] is not None},
             "capabilities": {"max_message_chars": 8000, "buttons": True, "edit": True, "prompts": True, "attachments": True,
-                             "max_upload_bytes": 31457280, "max_message_files": 10, **({"forms": True} if FORMS_ON else {})}}
+                             "max_upload_bytes": 31457280, "max_message_files": 10, **({"forms": True} if FORMS_ON else {}),
+                             **({"history_shape": 2, "seen": True, "shared_conversation": True, "presence_away": True} if SHARED_ON else {})}}
 
 
 def err(status, code, message):
@@ -608,6 +644,7 @@ async def reply_to(text, sticker=None):
     if any(w in text for w in ("파일", "file")):
         f1 = store_file("11월 지출 정리.md", "# 11월 지출\n\n- 식비 320,000원\n- 교통 45,000원\n".encode())
         push_frame({"type": "files", "body": "정리했어요. 한번 봐 주세요.", "files": [f1]})
+        add_history("lucia", CONV, "정리했어요. 한번 봐 주세요.", files=[f1])
         return
     if any(w in text for w in ("스티커", "sticker")):
         # 글은 `text`로, 스티커는 바로 뒤의 `sticker` 프레임으로 간다. 기록에는 마지막 줄 `[스티커:이름]`으로 남는다.
@@ -635,8 +672,10 @@ async def reply_to(text, sticker=None):
     answer = f"네, 들었어요. \"{text[:40]}\"요? 그건 시아가 맡을게요."
     push_frame({"type": "text", "body": answer})
     await asyncio.sleep(1.0)
-    push_frame({"type": "text", "body": "끝나면 바로 알려 드릴게요."})
-    add_history("lucia", CONV, answer)
+    more = "끝나면 바로 알려 드릴게요."
+    push_frame({"type": "text", "body": more})
+    # 기록에는 한 덩어리로, 새 모양에서는 조각으로도 남는다(6.2).
+    add_history("lucia", CONV, answer + "\n\n" + more, parts=[answer, more])
 
 
 # ---------------------------------------------------------------- WebSocket
@@ -686,7 +725,16 @@ async def ws_handler(request):
         elif t == "ping":
             await ws.send_str('{"type":"pong"}')
         elif t == "presence":
+            if f.get("state") not in ("foreground", "background") + (("away",) if SHARED_ON else ()):
+                await ws.send_str(json.dumps({"type": "error", "code": "bad_frame", "message": "presence.state가 틀렸다"})); continue
             state["presence"] = f.get("state"); print("[ws] presence", f.get("state"))
+        elif t == "seen" and SHARED_ON:
+            n = f.get("seq")
+            if not isinstance(n, int) or isinstance(n, bool):
+                await ws.send_str(json.dumps({"type": "error", "code": "bad_frame", "message": "seen.seq가 정수가 아니다"})); continue
+            # 마지막으로 매긴 번호보다 큰 값은 그 번호로 맞춘다(5.6).
+            state["seen"] = min(n, state["seq"]); state["seen_frames"] += 1
+            print("[ws] seen", state["seen"])
         elif t == "message":
             text = (f.get("text") or "").strip(); fids = f.get("files") or []
             sid = (f.get("sticker") or "").strip() or None
@@ -1000,17 +1048,41 @@ async def handle_call(ws, f):
             if option: state["mode"] = MODE_ALIASES.get(option, option)
             await ok({"text": f"🛡️ 권한 모드: **{state['mode']}** — {MODES[state['mode']]}"})
     elif method == "history":
-        await ok(history_page(params.get("before"), params.get("limit", 50), params.get("scope", "app")))
+        await ok(history_page(params.get("before"), params.get("limit", 50), params.get("scope", "app"),
+                              params.get("shape", 1) if SHARED_ON else 1))
     else:
         await bad("unknown_method", "없는 메서드")
 
 
-def history_page(before, limit, scope):
-    items = [h for h in state["history"] if scope == "owner" or h["conversation"] == CONV]
+def history_page(before, limit, scope, shape=1):
+    def mine(conv):
+        # 앱은 기기가 여럿이어도 한 대화다(결정 0067): `app`은 모든 앱 대화와 앱 모두의 대화.
+        if SHARED_ON: return conv is not None and conv.startswith("app:")
+        return conv == CONV
+    items = [h for h in state["history"] if scope == "owner" or mine(h["conversation"])]
     if before: items = [h for h in items if h["id"] < int(before)]
     limit = max(1, min(100, int(limit)))
-    page = items[-limit:]
+    page = [shaped(h, shape) for h in items[-limit:]]
     return {"items": page, "more": len(items) > len(page)}
+
+
+def shaped(h, shape):
+    """기록 항목을 모양에 맞춰(6.2). 2면 조각과 파일을 싣고 본문의 파일 설명 줄을 뺀다. 아니면 예전 모양."""
+    out = {k: v for k, v in h.items() if k not in ("parts", "files")}
+    if shape != 2: return out
+    if h.get("parts"): out["parts"] = h["parts"]
+    if h.get("files"):
+        lines = out["body"].split("\n")
+        at = max((i for i, l in enumerate(lines) if l.startswith("[첨부: ") and l.endswith("]")), default=None)
+        if at is not None: out["body"] = "\n".join(lines[:at] + lines[at + 1:]).rstrip()
+        out["files"] = []
+        for f in h["files"]:
+            entry = dict(f)
+            known = state["files"].get(f["id"])
+            if known is None or known[3]: entry.update(gone=True, reachable=False)
+            else: entry["reachable"] = True
+            out["files"].append(entry)
+    return out
 
 
 # ---------------------------------------------------------------- HTTP
@@ -1041,7 +1113,7 @@ async def expression_file(request):
 
 async def profile(_):
     if not PROFILE_ON: return err(501, "unsupported", "이 데몬은 프로필 이미지를 다루지 않는다")
-    return web.json_response({"avatar": PROFILE["avatar"]}, headers={"Cache-Control": "private, no-cache"})
+    return web.json_response(profile_body(), headers={"Cache-Control": "private, no-cache"})
 
 async def profile_avatar(request):
     if not PROFILE_ON: return err(501, "unsupported", "이 데몬은 프로필 이미지를 다루지 않는다")
@@ -1070,7 +1142,10 @@ async def profile_avatar(request):
 async def history(request):
     q = request.query
     if q.get("scope", "app") not in ("app", "owner"): return err(400, "bad_params", "scope")
-    return web.json_response(history_page(q.get("before"), q.get("limit", 50), q.get("scope", "app")), dumps=lambda o: json.dumps(o, ensure_ascii=False))
+    shape = q.get("shape", "1")
+    if shape not in ("1", "2"): return err(400, "bad_params", "shape는 1이나 2")
+    page = history_page(q.get("before"), q.get("limit", 50), q.get("scope", "app"), int(shape) if SHARED_ON else 1)
+    return web.json_response(page, dumps=lambda o: json.dumps(o, ensure_ascii=False))
 
 async def upload(request):
     data = await request.read()
@@ -1117,16 +1192,82 @@ async def del_push(_):
 
 async def dev_send(request):
     kind = request.query.get("kind", "text"); body = request.query.get("body", "시험 메시지예요.")
+    # alert=0: 다른 기기가 울린다(놓아 두기만). conv=...: 그 대화(다른 기기)의 프레임이다(결정 0066·0067).
+    extra = {}
+    if request.query.get("alert") == "0": extra["alert"] = False
+    if request.query.get("conv"): extra["conversation"] = request.query["conv"]
     if kind == "card":
-        ref, c = new_card_frame("mail"); push_frame({"type": "card", "ref": ref, "card": c})
+        ref, c = new_card_frame("mail"); push_frame({"type": "card", "ref": ref, "card": c, **extra})
     elif kind == "sticker":
         if request.query.get("id"):  # 목록에 없는 ID를 그대로 보내 보는 시험
             push_frame({"type": "sticker", "sticker": {"id": request.query["id"], "name": request.query.get("name", "?")}})
         else:
             send_sticker(request.query.get("name", "축하"))
     else:
-        push_frame({"type": kind, "body": body})
+        push_frame({"type": kind, "body": body, **extra})
     return web.json_response({"seq": state["seq"], "online": state["ws"] is not None})
+
+
+async def dev_desk(request):
+    """/_dev/desk?body=...&files=1&sticker=축하&context=1&reply=0 : 다른 기기(데스크톱)에서 사용자가 말한 것처럼(결정 0067)."""
+    if not SHARED_ON: return err(409, "unsupported", "--no-shared: 예전 데몬은 다른 기기의 말을 보내지 않는다")
+    q = request.query
+    body = q.get("body", "회의 자료 정리해 줘")
+    frame = {"type": "sent", "body": body, "conversation": DESK_CONV, "from": {"client": DESK, "name": "데스크톱 앱"},
+             "at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + ".000000+00:00"}
+    files = []
+    if q.get("files"):
+        files = [store_file("회의 메모.md", "# 회의\n\n- 일정 확인\n".encode())]
+        frame["files"] = files
+    lines = [body] if body else []
+    if q.get("sticker"):
+        st = sticker_by("name", q["sticker"])
+        if st is not None:
+            frame["sticker"] = {"id": st["id"], "name": st["name"]}
+            lines.append(sticker_line(st))
+    if q.get("context"):
+        frame["context_note"] = "[고른 글 120자 함께 보냄 · msedge.exe]"
+    push_frame(frame)
+    # 기록의 본문은 데몬처럼: 글, 스티커 줄, 파일 설명 줄, 고른 글 표지 차례(사양 5.5).
+    add_history("user", DESK_CONV, "\n".join(lines), files=files or None)
+    if q.get("context"):
+        last = state["history"][-1]
+        last["body"] = (last["body"] + "\n" if last["body"] else "") + frame["context_note"]
+    if q.get("reply", "1") != "0":
+        async def answer():
+            push_frame({"type": "typing"}, numbered=False)
+            await asyncio.sleep(1.2)
+            text = f"데스크톱에서 말한 \"{body[:30]}\", 정리했어요."
+            # 물은 앱(데스크톱)이 앞에 있어 그쪽이 울린다. 휴대폰 상자에는 놓아 두기만 한다(11.1).
+            push_frame({"type": "text", "body": text, "conversation": DESK_CONV, "alert": False})
+            add_history("lucia", DESK_CONV, text)
+        asyncio.ensure_future(answer())
+    return web.json_response({"seq": state["seq"], "online": state["ws"] is not None})
+
+
+async def dev_alert(request):
+    """/_dev/alert?seq=N : 놓아 둔 그 번호의 프레임을 지금 알리라는 `alert`(5.5). 번호를 빼면 가장 최근에 놓아 둔 것."""
+    if not SHARED_ON: return err(409, "unsupported", "--no-shared")
+    seq = request.query.get("seq")
+    if seq is None:
+        held = [f for f in state["box"] if f.get("alert") is False]
+        if not held: return err(404, "not_found", "놓아 둔 프레임이 없다")
+        seq = held[-1]["seq"]
+    push_frame({"type": "alert", "seq": int(seq)}, numbered=False)
+    return web.json_response({"alert": int(seq), "online": state["ws"] is not None})
+
+
+async def dev_seen(request):
+    """/_dev/seen?seq=N : 다른 기기에서 그 번호(이 앱의 번호)까지 봤다(5.5). 끊겨 있으면 `clear` 푸시를 보낸 것으로 찍는다(10.4)."""
+    if not SHARED_ON: return err(409, "unsupported", "--no-shared")
+    seq = int(request.query.get("seq", state["seq"]))
+    ws = state["ws"]
+    if ws is not None and not ws.closed:
+        push_frame({"type": "seen", "seq": seq}, numbered=False)
+        return web.json_response({"seen": seq, "via": "frame"})
+    state["clears"].append(seq)
+    print(f"[push] clear seq={seq} (가짜 서버는 FCM으로 보내지 않는다)")
+    return web.json_response({"seen": seq, "via": "clear"})
 
 async def dev_invoke(request):
     """/_dev/invoke?method=location.get&params={"precise":true} : 루시아가 앱 기능을 부른 것처럼 하고 앱의 답을 그대로 돌려준다."""
@@ -1179,13 +1320,21 @@ async def dev_expressions(request):
     return web.json_response({"version": version, "removed": sorted(expr["removed"])})
 
 async def dev_profile(request):
-    """/_dev/profile?set=1|2|big|photo|wide|bad|huge|gone|none[&quiet=1] : 루시아가 프로필 그림을 바꾼 것처럼."""
-    avatar = set_avatar(request.query.get("set", "1"), quiet=bool(request.query.get("quiet")))
+    """/_dev/profile?set=1|2|big|photo|wide|bad|huge|gone|none[&quiet=1] : 루시아가 프로필 그림을 바꾼 것처럼.
+    ?name=달빛 : 사용자가 관리 페이지에서 보이는 이름을 바꾼 것처럼(결정 0064). 비우면 `name`을 빼고 보낸다."""
+    q = request.query
+    if "name" in q and "set" not in q:
+        PROFILE["name"] = q["name"].strip()[:24] or None
+        print(f"[profile] name={PROFILE['name']}")
+        if PROFILE_ON and not q.get("quiet"): push_frame({"type": "profile", **profile_body()}, numbered=False)
+        return web.json_response(profile_body())
+    avatar = set_avatar(q.get("set", "1"), quiet=bool(q.get("quiet")))
     return web.json_response({"avatar": avatar})
 
 async def dev_state(_):
     return web.json_response({"seq": state["seq"], "acked": state["acked"], "presence": state["presence"],
-                              "online": state["ws"] is not None and not state["ws"].closed, "push": state["push"] is not None})
+                              "online": state["ws"] is not None and not state["ws"].closed, "push": state["push"] is not None,
+                              "seen": state["seen"], "seen_frames": state["seen_frames"], "clears": state["clears"]})
 
 
 def make_app():
@@ -1198,7 +1347,8 @@ def make_app():
         web.get("/v1/profile", profile), web.get("/v1/profile/avatar/{id}", profile_avatar), web.get("/_dev/profile", dev_profile),
         web.get("/v1/browser/handover/frame/{tab}", hand_frame), web.get("/_dev/handover", dev_handover),
         web.get("/_dev/expressions", dev_expressions), web.get("/_dev/slow", dev_slow), web.get("/_dev/fail", dev_fail), web.get("/_dev/compact", dev_compact), web.get("/_dev/model", dev_model), web.get("/_dev/invoke", dev_invoke),
-        web.get("/_dev/send", dev_send), web.get("/_dev/drop", dev_drop), web.get("/_dev/reset", dev_reset), web.get("/_dev/state", dev_state),
+        web.get("/_dev/send", dev_send), web.get("/_dev/desk", dev_desk), web.get("/_dev/alert", dev_alert), web.get("/_dev/seen", dev_seen),
+        web.get("/_dev/drop", dev_drop), web.get("/_dev/reset", dev_reset), web.get("/_dev/state", dev_state),
     ])
     return app
 
@@ -1210,12 +1360,14 @@ if __name__ == "__main__":
     p.add_argument("--legacy-commands", action="store_true", help="주 모델·current·session.compact가 없는 예전 데몬처럼 군다")
     p.add_argument("--no-profile", action="store_true", help="프로필 이미지 기능이 없는 예전 데몬처럼 군다")
     p.add_argument("--no-forms", action="store_true", help="입력 칸이 있는 카드(form)를 모르는 예전 데몬처럼 군다(capabilities.forms가 없다)")
+    p.add_argument("--no-shared", action="store_true", help="한 대화·seen·기록 모양(결정 0066·0067)이 없는 예전 데몬처럼 군다")
     a = p.parse_args()
     SCOPES.extend(x for x in a.scopes.split(",") if x)
     EXPRESSIONS_ON = not a.no_expressions
     LEGACY_COMMANDS = a.legacy_commands
     PROFILE_ON = not a.no_profile
     FORMS_ON = not a.no_forms
+    SHARED_ON = not a.no_shared
     load_expressions()
     reset()
     print(f"가짜 Lucia 서버: 0.0.0.0:{a.port}\n토큰: {TOKEN}")

@@ -91,36 +91,59 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
 
     /**
      * 번호 붙는 프레임 하나를 저장하고 `lastSeq`를 [ServerFrame.Numbered.seq]로 올린다.
-     * 이미 저장한 번호는 건드리지 않는다.
+     * 이미 저장한 번호는 건드리지 않는다. 모르는 `type`([ServerFrame.UnknownNumbered])은 그리지 않고 번호만 올린다(5.4).
      */
     suspend fun applyFrame(frame: ServerFrame.Numbered, now: Long) = withContext(io) {
         val db = helper.writableDatabase
         db.transaction {
             val key = frameKey(frame)
             when (frame) {
-                is ServerFrame.Text -> insertFrame(db, key, now, Kind.TEXT, frame.body, null, null, emptyList(), frame.seq)
+                is ServerFrame.Text -> insertFrame(db, key, now, Kind.TEXT, frame.body, frame.seq, conversation = frame.conversation)
                 // 스티커만 있는 줄: 글은 비우고 스티커를 붙인다. 묶음·시각·출처는 글과 똑같이 다뤄진다.
                 is ServerFrame.Sticker -> insertFrame(
-                    db, key, now, Kind.TEXT, "", null, null, emptyList(), frame.seq,
-                    sticker = StickerRef(frame.id.ifEmpty { null }, frame.name),
+                    db, key, now, Kind.TEXT, "", frame.seq,
+                    sticker = StickerRef(frame.id.ifEmpty { null }, frame.name), conversation = frame.conversation,
                 )
-                is ServerFrame.Note -> insertFrame(db, key, now, Kind.NOTE, frame.body, null, null, emptyList(), frame.seq)
-                is ServerFrame.Files -> insertFrame(db, key, now, Kind.FILES, frame.body, null, null, frame.files, frame.seq)
+                is ServerFrame.Note -> insertFrame(db, key, now, Kind.NOTE, frame.body, frame.seq, conversation = frame.conversation)
+                is ServerFrame.Files -> insertFrame(
+                    db, key, now, Kind.FILES, frame.body, frame.seq, files = frame.files, conversation = frame.conversation,
+                )
                 is ServerFrame.CardOpen -> {
                     // 같은 ref가 이미 있으면(다시 받기가 겹친 경우) 내용만 맞춘다.
                     if (!updateCard(db, frame.ref, frame.card, onlyIfPending = true))
-                        insertFrame(db, key, now, Kind.CARD, frame.card.headline, frame.ref, frame.card, emptyList(), frame.seq)
+                        insertFrame(
+                            db, key, now, Kind.CARD, frame.card.headline, frame.seq,
+                            ref = frame.ref, card = frame.card, conversation = frame.conversation,
+                        )
                 }
                 is ServerFrame.CardClosed -> {
                     // 닫힌 카드가 이 앱에 남아 있지 않으면(보관 기간 밖 등) 닫힌 채로 새로 보인다.
                     if (!updateCard(db, frame.ref, frame.card, onlyIfPending = false))
-                        insertFrame(db, key, now, Kind.CARD, frame.card.headline, frame.ref, frame.card, emptyList(), frame.seq)
+                        insertFrame(
+                            db, key, now, Kind.CARD, frame.card.headline, frame.seq,
+                            ref = frame.ref, card = frame.card, conversation = frame.conversation,
+                        )
                 }
+                // 다른 기기에서 한 내 말(결정 0067). 받은 차례대로 놓는다(5.5, 12.8).
+                is ServerFrame.Sent -> insertFrame(
+                    db, key, now, if (frame.files.isEmpty()) Kind.TEXT else Kind.FILES, frame.body, frame.seq,
+                    files = frame.files,
+                    sticker = frame.stickerName?.let { StickerRef(frame.stickerId, it) }
+                        ?: frame.stickerId?.let { StickerRef(it, "") },
+                    conversation = frame.conversation, sender = Sender.USER,
+                    device = frame.fromName, contextNote = frame.contextNote,
+                )
+                is ServerFrame.UnknownNumbered -> Unit
+            }
+            // 울렸을 수 있는 가장 새 번호. 모르는 type도 셈에 넣는다(알림이 떴을지 앱은 모른다).
+            if (frame is ServerFrame.Alerting || frame is ServerFrame.UnknownNumbered) {
+                val alerting = meta(db, META_LAST_ALERT_SEQ)?.toLongOrNull() ?: 0L
+                if (frame.seq > alerting) putMeta(db, META_LAST_ALERT_SEQ, frame.seq.toString())
             }
             val last = meta(db, META_LAST_SEQ)?.toLongOrNull() ?: 0L
             if (frame.seq > last) putMeta(db, META_LAST_SEQ, frame.seq.toString())
         }
-        requestRefresh()
+        if (frame !is ServerFrame.UnknownNumbered) requestRefresh()
     }
 
     private fun frameKey(frame: ServerFrame.Numbered): String {
@@ -131,19 +154,22 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
             is ServerFrame.CardOpen -> "c" + frame.ref
             is ServerFrame.CardClosed -> "x" + frame.ref
             is ServerFrame.Sticker -> "k" + frame.id + frame.name
+            is ServerFrame.Sent -> "u" + frame.body + frame.files.joinToString { it.id } + frame.stickerId + frame.stickerName
+            is ServerFrame.UnknownNumbered -> "?" + frame.type
         }
         return "s:${frame.seq}:${content.hashCode()}"
     }
 
     private fun insertFrame(
-        db: SQLiteDatabase, key: String, now: Long, kind: Kind, body: String,
-        ref: String?, card: Card?, files: List<FileRef>, seq: Long, sticker: StickerRef? = null,
+        db: SQLiteDatabase, key: String, now: Long, kind: Kind, body: String, seq: Long,
+        ref: String? = null, card: Card? = null, files: List<FileRef> = emptyList(), sticker: StickerRef? = null,
+        conversation: String? = null, sender: Sender = Sender.LUCIA, device: String? = null, contextNote: String? = null,
     ) {
         val values = ContentValues().apply {
             put("key", key)
             // 받은 때. 같은 시각의 프레임은 id 순으로 정렬되도록 이전 줄보다 앞서지 않게 한다.
             put("sort_at", maxOf(now, newestSortAt(db)))
-            put("sender", Sender.LUCIA.name)
+            put("sender", sender.name)
             put("kind", kind.name)
             put("body", body)
             put("ref", ref)
@@ -152,8 +178,24 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
             put("sticker", encodeSticker(sticker))
             put("seq", seq)
             put("delivery", Delivery.SENT.name)
+            put("conversation", conversation)
+            put("device", device)
+            put("context_note", contextNote)
         }
         db.insertWithOnConflict("item", null, values, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    /**
+     * 이 번호로 받은 루시아의 줄(데몬이 `alert{seq}`로 지금 알리라고 한 프레임, 5.5). 없거나(다시 깔았다, 번호를 다시 매겼다)
+     * 이미 닫힌 카드면 null이다.
+     */
+    suspend fun alertable(seq: Long): StoredItem? = withContext(io) {
+        if (seq <= 0) return@withContext null
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMNS FROM item WHERE seq=? AND sender!=? AND kind!=? ORDER BY id DESC LIMIT 1",
+            arrayOf(seq.toString(), Sender.USER.name, Kind.NOTE.name),
+        ).use { c -> if (c.moveToFirst()) c.toItem() else null }
+            ?.takeIf { it.kind != Kind.CARD || it.card?.isPending == true }
     }
 
     private fun updateCard(db: SQLiteDatabase, ref: String, card: Card, onlyIfPending: Boolean): Boolean {
@@ -225,12 +267,12 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
     // ------------------------------------------------------------ 가져온 기록
 
     /**
-     * `history` 결과를 저장한다. 이미 있는 줄과 겹치는 것(같은 말·같은 글, 5분 안)은 건너뛰고, [after]가 있으면 그
-     * 시각보다 나중의 기록만 받는다. 새로 들어간 건수를 돌려준다.
+     * `history` 결과를 저장한다. 이미 있는 줄과 겹치는 것(같은 쪽의 같은 말, 5분 안)은 건너뛰고, [after]가 있으면 그
+     * 시각보다 나중의 기록만 받는다. 새로 들어간 건수를 돌려준다. 한 항목이 여러 줄이 될 수 있다([HistoryRows]).
      *
-     * 기록의 스티커는 글 속의 한 줄(`[스티커:이름]`)이다(app-expressions.md 6장). 실시간으로는 글(`text`)과 스티커(`sticker`)가
-     * 따로 왔으므로, 여기서도 글과 스티커로 나눠 저장하고 겹침도 나눈 모양으로 본다. 나누지 않으면 스티커가 낀 말은
-     * 기록을 다시 받을 때마다 한 번 더 보인다.
+     * 실시간으로 받은 말과 기록은 서로의 ID를 모른다(12.8). 그래서 시각과 글로 맞춘다: 기록의 본문에는 설명 줄(스티커,
+     * 파일, 고른 글)이 더 붙을 수 있어 그 줄들을 뺀 글로 견주고, 파일이 있으면 파일 ID로 견준다(실시간 `files` 프레임과
+     * 기록의 `files`는 같은 ID다, 5.5). 이미 받은 기록 항목(같은 기록 ID)은 모양이 달라도 다시 넣지 않는다.
      */
     suspend fun importHistory(items: List<HistoryItem>, after: Long? = null): Int = withContext(io) {
         val db = helper.writableDatabase
@@ -239,43 +281,63 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
             for (item in items) {
                 val at = parseInstant(item.at)
                 if (after != null && at <= after) continue
+                if (hasHistory(db, item.id)) continue
                 val sender = Sender.fromHistory(item.from)
-                val split = StickerLine.split(item.body)
-                if (existsSimilar(db, sender, split.text, split.sticker, at)) continue
-                val values = ContentValues().apply {
-                    put("key", "h:${item.id}")
-                    put("sort_at", at)
-                    put("sender", sender.name)
-                    put("kind", Kind.TEXT.name)
-                    put("body", split.text)
-                    put("sticker", encodeSticker(split.sticker))
-                    put("delivery", Delivery.SENT.name)
-                    put("conversation", item.conversation)
+                for (row in HistoryRows.of(item)) {
+                    if (existsSimilar(db, sender, row, at)) continue
+                    val values = ContentValues().apply {
+                        put("key", row.key)
+                        put("sort_at", at)
+                        put("sender", sender.name)
+                        put("kind", (if (row.files.isEmpty()) Kind.TEXT else Kind.FILES).name)
+                        put("body", row.text)
+                        put("files", encodeFiles(row.files))
+                        put("sticker", encodeSticker(row.sticker))
+                        put("delivery", Delivery.SENT.name)
+                        put("conversation", item.conversation)
+                        put("context_note", row.contextNote)
+                    }
+                    if (db.insertWithOnConflict("item", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L) added++
                 }
-                if (db.insertWithOnConflict("item", null, values, SQLiteDatabase.CONFLICT_IGNORE) != -1L) added++
             }
         }
         if (added > 0) requestRefresh()
         added
     }
 
+    private fun hasHistory(db: SQLiteDatabase, id: Long): Boolean =
+        db.rawQuery("SELECT 1 FROM item WHERE key=? OR key LIKE ? LIMIT 1", arrayOf("h:$id", "h:$id:%")).use { it.moveToFirst() }
+
     /**
-     * 같은 쪽이 가까운 때에 한 같은 말이 이미 있는가. 글이 있으면 글로 본다(스티커는 실시간에서 다른 줄로 왔을 수 있다).
-     * 글 없이 스티커뿐이면 같은 이름의 스티커 줄이 있는지 본다.
+     * 같은 쪽이 가까운 때에 한 같은 말이 이미 있는가.
+     * - 파일이 있으면 같은 파일 ID가 붙은 줄이 있는지 본다.
+     * - 글이 있으면 설명 줄을 뺀 글로 본다(스티커는 실시간에서 다른 줄로 왔을 수 있다). 긴 답은 조각으로도 본다.
+     * - 글 없이 스티커뿐이면 같은 이름의 스티커 줄이 있는지 본다.
      */
-    private fun existsSimilar(db: SQLiteDatabase, sender: Sender, text: String, sticker: StickerRef?, at: Long): Boolean {
-        if (text.isNotEmpty() || sticker == null) {
-            val same = db.rawQuery(
-                "SELECT 1 FROM item WHERE sender=? AND body=? AND ABS(sort_at-?) < ? LIMIT 1",
-                arrayOf(sender.name, text, at.toString(), SIMILAR_WITHIN_MS.toString()),
-            ).use { it.moveToFirst() }
+    private fun existsSimilar(db: SQLiteDatabase, sender: Sender, row: HistoryRows.Row, at: Long): Boolean {
+        val near = arrayOf(sender.name, at.toString(), SIMILAR_WITHIN_MS.toString())
+        if (row.files.isNotEmpty()) {
+            val ids = row.files.mapNotNull { f -> f.id.takeIf { it.isNotEmpty() } }.toSet()
+            val found = db.rawQuery("SELECT files FROM item WHERE sender=? AND files IS NOT NULL AND ABS(sort_at-?) < ?", near).use { c ->
+                var hit = false
+                while (!hit && c.moveToNext()) hit = decodeFiles(c.getString(0)).any { it.id in ids }
+                hit
+            }
+            if (found) return true
+        }
+        val text = HistoryLines.comparable(row.text)
+        if (text.isNotEmpty() || row.sticker == null) {
+            if (text.isEmpty() && row.files.isNotEmpty()) return false
+            val same = db.rawQuery("SELECT body FROM item WHERE sender=? AND kind!=? AND ABS(sort_at-?) < ?",
+                arrayOf(sender.name, Kind.CARD.name, at.toString(), SIMILAR_WITHIN_MS.toString())).use { c ->
+                var hit = false
+                while (!hit && c.moveToNext()) hit = HistoryLines.comparable(c.getString(0)) == text
+                hit
+            }
             return same || existsInParts(db, sender, text, at)
         }
-        val want = Expressions.nameKey(sticker.name)
-        return db.rawQuery(
-            "SELECT sticker FROM item WHERE sender=? AND body='' AND sticker IS NOT NULL AND ABS(sort_at-?) < ?",
-            arrayOf(sender.name, at.toString(), SIMILAR_WITHIN_MS.toString()),
-        ).use { c ->
+        val want = Expressions.nameKey(row.sticker.name)
+        return db.rawQuery("SELECT sticker FROM item WHERE sender=? AND body='' AND sticker IS NOT NULL AND ABS(sort_at-?) < ?", near).use { c ->
             var found = false
             while (!found && c.moveToNext()) found = decodeSticker(c.getString(0))?.let { Expressions.nameKey(it.name) } == want
             found
@@ -283,7 +345,7 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
     }
 
     /**
-     * 긴 답은 실시간으로는 여러 `text` 프레임으로 나뉘어 오고, 기록에는 빈 줄로 이어 붙인 한 덩어리로 남는다.
+     * 긴 답은 실시간으로는 여러 `text` 프레임으로 나뉘어 오고, 예전 모양의 기록에는 빈 줄로 이어 붙인 한 덩어리로 남는다.
      * 가까운 때에 잇달아 온 줄들을 이어 붙인 것이 이 기록과 같으면 이미 있는 말이다.
      */
     private fun existsInParts(db: SQLiteDatabase, sender: Sender, text: String, at: Long): Boolean {
@@ -340,6 +402,9 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
     private fun encodeFiles(files: List<FileRef>): String? =
         if (files.isEmpty()) null else LucentJson.encodeToString(ListSerializer(FileRef.serializer()), files)
 
+    private fun decodeFiles(text: String?): List<FileRef> =
+        text?.let { runCatching { LucentJson.decodeFromString(ListSerializer(FileRef.serializer()), it) }.getOrNull() }.orEmpty()
+
     private fun encodeSticker(sticker: StickerRef?): String? =
         sticker?.let { LucentJson.encodeToString(StickerRef.serializer(), it) }
 
@@ -358,17 +423,19 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
             body = s("body"),
             ref = sn("ref"),
             card = sn("card")?.let { runCatching { LucentJson.decodeFromString(Card.serializer(), it) }.getOrNull() },
-            files = sn("files")?.let { runCatching { LucentJson.decodeFromString(ListSerializer(FileRef.serializer()), it) }.getOrNull() }.orEmpty(),
+            files = decodeFiles(sn("files")),
             seq = getLong(getColumnIndexOrThrow("seq")),
             delivery = Delivery.valueOf(s("delivery")),
             localId = sn("local_id"),
             conversation = sn("conversation"),
             sticker = decodeSticker(sn("sticker")),
+            device = sn("device"),
+            contextNote = sn("context_note"),
         )
     }
 
-    /** 판 2: 스티커 칸(`sticker`)이 더해졌다. */
-    private class Helper(context: Context, name: String?) : SQLiteOpenHelper(context, name, null, 2) {
+    /** 판 2: 스티커 칸(`sticker`)이 더해졌다. 판 3: 다른 기기의 이름(`device`)과 고른 글 표지(`context_note`). */
+    private class Helper(context: Context, name: String?) : SQLiteOpenHelper(context, name, null, 3) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL(
                 """CREATE TABLE item(
@@ -385,7 +452,9 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
                     delivery TEXT NOT NULL DEFAULT 'SENT',
                     local_id TEXT,
                     conversation TEXT,
-                    sticker TEXT
+                    sticker TEXT,
+                    device TEXT,
+                    context_note TEXT
                 )""",
             )
             db.execSQL("CREATE INDEX item_order ON item(sort_at, id)")
@@ -395,6 +464,10 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
             if (oldVersion < 2) db.execSQL("ALTER TABLE item ADD COLUMN sticker TEXT")
+            if (oldVersion < 3) {
+                db.execSQL("ALTER TABLE item ADD COLUMN device TEXT")
+                db.execSQL("ALTER TABLE item ADD COLUMN context_note TEXT")
+            }
         }
     }
 
@@ -405,10 +478,17 @@ class ChatStore(context: Context, name: String? = "lucent-chat.db") {
         const val META_HISTORY_OLDEST = "history_oldest_id"
         const val META_HISTORY_MORE = "history_more"
         const val META_INITIAL_IMPORT = "initial_import_done"
+        /** 울렸을 수 있는(`text`·`files`·`card`·`sticker`, 모르는 type) 가장 새 프레임의 번호. 알림을 치울 때 본다. */
+        const val META_LAST_ALERT_SEQ = "last_alert_seq"
+        /** 이 기기에서 사용자가 본 마지막 번호(`seen`, 12.6). */
+        const val META_SEEN_SEQ = "seen_seq"
+        /** 처음 깔 때 기록으로 채운 번호. 이 번호까지는 프레임으로 보이지 않았으니 봤다고 알리지 않는다. */
+        const val META_SEEN_FLOOR = "seen_floor"
         private const val SIMILAR_WITHIN_MS = 5 * 60_000L
         /** 데몬이 기록에서 한 답의 조각들을 잇는 글(빈 줄 하나). */
         private const val HISTORY_PART_GAP = "\n\n"
-        private const val COLUMNS = "id, key, sort_at, sender, kind, body, ref, card, files, seq, delivery, local_id, conversation, sticker"
+        private const val COLUMNS =
+            "id, key, sort_at, sender, kind, body, ref, card, files, seq, delivery, local_id, conversation, sticker, device, context_note"
 
         fun parseInstant(text: String): Long =
             runCatching { OffsetDateTime.parse(text).toInstant().toEpochMilli() }.getOrDefault(System.currentTimeMillis())

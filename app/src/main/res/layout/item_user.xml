@@ -10,6 +10,17 @@
     android:paddingTop="@dimen/space_xs"
     android:paddingEnd="@dimen/gutter">
 
+    <!-- 다른 기기에서 한 내 말이면 묶음의 첫 줄 위에 그 기기를 적는다(결정 0067). -->
+    <TextView
+        android:id="@+id/source"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/space_xs"
+        android:layout_marginBottom="@dimen/space_xs"
+        android:visibility="gone"
+        tools:text="데스크톱 앱에서"/>
+
     <LinearLayout
         android:id="@+id/files"
         android:layout_width="wrap_content"
@@ -51,6 +62,17 @@
         android:textColor="@color/ink_muted"
         android:visibility="gone"
         tools:text="[스티커: 축하]"/>
+
+    <!-- 함께 보낸 고른 글의 표지. 고른 글 자체는 남지 않는다(사양 5.6). -->
+    <TextView
+        android:id="@+id/context"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_xs"
+        android:layout_marginEnd="@dimen/space_xs"
+        android:visibility="gone"
+        tools:text="고른 글 120자 함께 보냄 · msedge.exe"/>
 
     <LinearLayout
         android:id="@+id/statusRow"

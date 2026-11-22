@@ -26,6 +26,7 @@ import dev.mooner.lucent.net.GatewayConfig
 import dev.mooner.lucent.net.LinkState
 import dev.mooner.lucent.net.RouteBase
 import dev.mooner.lucent.notify.Notifier
+import dev.mooner.lucent.notify.Seen
 import dev.mooner.lucent.protocol.ClientFrames
 import dev.mooner.lucent.protocol.CommandInfo
 import dev.mooner.lucent.protocol.CommandList
@@ -156,7 +157,15 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
     }
 
     @Volatile private var isForeground = false
+    /** 대화 화면이 정말 보이는가(ChatActivity가 앞에 있다). 봤다고 알리는 것은 이때뿐이다(12.6). */
+    @Volatile private var chatVisible = false
     @Volatile private var lastSeq = 0L
+    /** 이 기기에서 봤다고 알린 번호와, 처음 기록으로 채워 프레임으로 보인 적이 없는 번호(`Seen`). */
+    @Volatile private var seenSeq = 0L
+    @Volatile private var seenFloor = 0L
+    private var seenJob: Job? = null
+    /** 이 연결의 다시 받기가 끝났다(`resumed`, 또는 다시 받지 않는 처음 연결). 그 전에는 상자의 끝을 모른다. */
+    @Volatile private var replayDone = false
     private var ackedSeq = 0L
     private var ackJob: Job? = null
     private var typingJob: Job? = null
@@ -169,6 +178,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         notifier.emojiLabel = { name -> expressions.current.value.emoji(name)?.label }
         // 시스템은 알림의 큰 아이콘을 아바타쯤의 크기(36~48dp)로 줄여 쓴다. 그 크기로 읽어 둔 것을 넘긴다.
         notifier.face = { profile.face.value?.small }
+        notifier.title = { profile.name.value ?: app.getString(R.string.assistant_name) }
         scope.launch { for (frame in gateway.frames) process(frame) }
         scope.launch {
             gateway.state.collect { state ->
@@ -285,6 +295,8 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         tools.clearNotices()
         lastSeq = 0
         ackedSeq = 0
+        seenSeq = 0
+        seenFloor = 0
         notifier.clearAll()
         expressions.clear()
         profile.clear()
@@ -301,7 +313,13 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
                 is ServerFrame.Typing -> onTyping()
                 is ServerFrame.Expressions -> scope.launch { expressions.sync(frame.version) }
                 // 차례를 지켜야 하므로(바로 뒤에 또 바뀔 수 있다) 따로 띄우지 않는다. 그림 받기는 저장소가 뒤에서 한다.
-                is ServerFrame.ProfileChanged -> profile.apply(frame.avatar)
+                // 늘 지금의 이름과 그림 전체가 온다(결정 0064).
+                is ServerFrame.ProfileChanged -> {
+                    profile.applyName(frame.name)
+                    profile.apply(frame.avatar)
+                }
+                is ServerFrame.Seen -> onSeenElsewhere(frame.seq)
+                is ServerFrame.Alert -> onAlert(frame.seq)
                 is ServerFrame.Accepted -> frame.id?.let { store.setDelivery(it, Delivery.SENT) }
                 is ServerFrame.Error -> onServerError(frame)
                 else -> Unit
@@ -332,10 +350,19 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
             lastSeq = w.seq
             ackedSeq = 0
             scheduleAck()
+            // 그 번호까지의 프레임(상자의 카드 등)은 이 기기에 보인 적이 없다. 그것만으로 봤다고 알리지 않는다.
+            store.putMeta(ChatStore.META_SEEN_FLOOR, w.seq.toString())
+            replayDone = true
             scope.launch { importInitialHistory() }
         } else {
             lastSeq = store.lastSeq()
+            replayDone = false
         }
+        seenSeq = store.meta(ChatStore.META_SEEN_SEQ)?.toLongOrNull() ?: 0L
+        seenFloor = store.meta(ChatStore.META_SEEN_FLOOR)?.toLongOrNull() ?: 0L
+        // 연결할 때마다 지금까지 본 번호를 한 번 알린다(본 것이 없으면 0). 데몬이 다시 뜨면 "seen을 말하는 앱"을 잊기
+        // 때문이다(12.6). 표시가 없는 예전 데몬은 모르는 프레임에 bad_frame으로 답하므로 보내지 않는다.
+        if (w.capabilities.seen) gateway.send(ClientFrames.seen(seenSeq))
 
         scope.launch { push.sync(w) }
         // 끝냈다는 답을 받지 못한 화면 넘겨받기가 남아 있으면 지금 끝낸다.
@@ -344,7 +371,8 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         }
         // 이모지·스티커를 다루는 데몬이면 목록의 판을 맞춘다. 필드가 없으면 그 기능이 없는 데몬이다.
         w.expressions?.let { summary -> scope.launch { expressions.sync(summary.version) } }
-        // 루시아의 프로필 그림. 필드가 없으면 그 기능이 없는 데몬이라 기본 모습을 쓰고 서버에 묻지 않는다.
+        // 루시아의 프로필. 필드가 없으면 그 기능이 없는 데몬이라 기본 이름·모습을 쓰고 서버에 묻지 않는다.
+        profile.applyName(w.profile?.name)
         profile.apply(w.profile?.avatar)
     }
 
@@ -354,7 +382,13 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
             lastSeq = r.last
             store.setLastSeq(r.last)
             ackedSeq = 0
+            seenSeq = Seen.clamp(seenSeq, r.last)
+            seenFloor = Seen.clamp(seenFloor, r.last)
+            store.putMeta(ChatStore.META_SEEN_SEQ, seenSeq.toString())
+            store.putMeta(ChatStore.META_SEEN_FLOOR, seenFloor.toString())
+            store.putMeta(ChatStore.META_LAST_ALERT_SEQ, Seen.clamp(store.meta(ChatStore.META_LAST_ALERT_SEQ)?.toLongOrNull() ?: 0L, r.last).toString())
         }
+        if (!r.truncated || r.to >= r.last) replayDone = true
         if (r.truncated) {
             if (r.to < r.last) {
                 // 500개 상한에 걸렸다. 받은 데까지 처리하고 거기서부터 다시 연결해 나머지를 받는다(5.4).
@@ -379,6 +413,8 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         lastSeq = frame.seq
 
         when (frame) {
+            // 다른 기기에서 한 내 말. 루시아의 답이 아니므로 "쓰는 중"과 진행 안내는 그대로 둔다.
+            is ServerFrame.Sent, is ServerFrame.UnknownNumbered -> Unit
             is ServerFrame.Text, is ServerFrame.Files, is ServerFrame.CardOpen, is ServerFrame.Sticker -> {
                 _typing.value = false
                 clearActivity()
@@ -391,13 +427,72 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         }
         if (!isForeground) notifyInBackground(frame)
         scheduleAck()
+        reportSeen()
     }
 
+    /**
+     * 뒤에 있는 앱이 받은 프레임을 알릴지. 다른 기기가 울리는 프레임(`alert: false`, 5.4)은 화면에 놓기만 한다.
+     * 푸시가 이 앱을 깨우는 중이면 서버의 푸시 알림이 이미 뜬다. 앱이 같은 알림을 또 띄우지 않는다.
+     */
     private fun notifyInBackground(frame: ServerFrame.Numbered) {
-        // 푸시가 이 앱을 깨우는 중이면 서버의 푸시 알림이 이미 뜬다. 앱이 같은 알림을 또 띄우지 않는다.
+        if (frame !is ServerFrame.Alerting || !frame.alert) return
+        if (!coveredByPush()) notifier.notifyFrame(frame)
+    }
+
+    private fun coveredByPush(): Boolean {
         val w = _welcome.value
-        val coveredByPush = w != null && w.push.available && w.push.registered && push.isSupported
-        if (!coveredByPush) notifier.notifyFrame(frame)
+        return w != null && w.push.available && w.push.registered && push.isSupported
+    }
+
+    /**
+     * 놓아 두었던 프레임을 지금 알리라는 말(`alert{seq}`, 다른 기기에서 보지 않아 넘어왔다). 앱이 앞에 있으면 이미 보이고,
+     * 푸시를 받는 앱이면 데몬이 푸시로도 알린다. 그 프레임을 모르거나(다시 깔았다) 이미 닫힌 카드면 아무것도 하지 않는다.
+     */
+    private suspend fun onAlert(seq: Long) {
+        if (isForeground || coveredByPush()) return
+        store.alertable(seq)?.let(notifier::notifyStored)
+    }
+
+    /**
+     * 다른 기기에서 이 번호까지 봤다(`seen{seq}`). 그 번호까지의 알림을 치운다. 되돌려 `seen`을 보내지 않는다.
+     * 서버 푸시가 띄운 알림은 번호를 모르므로, 다시 받기가 끝났고 울렸을 수 있는 프레임이 모두 그 번호 안에 있을 때만 치운다.
+     */
+    private suspend fun onSeenElsewhere(seq: Long) {
+        val newest = if (replayDone) store.meta(ChatStore.META_LAST_ALERT_SEQ)?.toLongOrNull() ?: 0L else null
+        notifier.clearUpTo(seq, Seen.clearsAll(seq, newest))
+    }
+
+    /**
+     * 푸시 `clear`(10.4): 끊겨 있는 동안 다른 기기에서 [seq]번까지 봤다. 연결하지 않고 알림만 치운다. 서버 푸시가 띄운
+     * 알림은 번호를 모르므로, 이 기기에 매긴 마지막 번호(`GET /v1/me`의 `seq`)가 그 안에 있을 때만 모두 치운다.
+     */
+    suspend fun onClearPush(seq: Long, client: String?) {
+        if (!settings.isConfigured) return
+        val known = _welcome.value?.client
+        if (client != null && known != null && client != known) return
+        val newest = withTimeoutOrNull(CLEAR_ME_TIMEOUT_MS) { runCatching { api.me().seq }.getOrNull() }
+        notifier.clearUpTo(seq, Seen.clearsAll(seq, newest))
+    }
+
+    /** 대화 화면이 앞에 왔다([visible]) 또는 가려졌다. 보이면 그때까지 받은 것을 봤다고 알린다. */
+    fun chatShown(visible: Boolean) {
+        chatVisible = visible
+        if (visible) reportSeen()
+    }
+
+    /**
+     * 사용자가 봤다고 데몬에 알린다(`seen{seq}`, 12.6). 대화 화면이 보일 때 처리한 마지막 번호를 1초쯤 모아 보낸다.
+     * 연결이 없으면 적어만 두고 다음 연결의 `welcome` 뒤에 알린다.
+     */
+    private fun reportSeen() {
+        if (!chatVisible || seenJob?.isActive == true) return
+        seenJob = scope.launch {
+            delay(SEEN_DELAY_MS)
+            val seq = Seen.toReport(chatVisible && isForeground, lastSeq, seenSeq, seenFloor) ?: return@launch
+            seenSeq = seq
+            store.putMeta(ChatStore.META_SEEN_SEQ, seq.toString())
+            if (_welcome.value?.capabilities?.seen == true && link.value is LinkState.Online) gateway.send(ClientFrames.seen(seq))
+        }
     }
 
     /** `typing`은 몇 초마다 다시 오므로 마지막으로 온 뒤 몇 초가 지나면 표시를 지운다(5.5). */
@@ -459,10 +554,13 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
 
     private fun historyScope() = if (settings.importOwnerHistory) "owner" else "app"
 
+    /** 조각과 파일이 실린 기록 모양(`shape: 2`, 6.2)을 아는 데몬이면 그것으로 받는다. */
+    private fun historyShape(): Int? = if ((_welcome.value?.capabilities?.historyShape ?: 0) >= 2) 2 else null
+
     /** 처음 설치했을 때 화면을 기록으로 채운다(12.3). */
     private suspend fun importInitialHistory() {
         runCatching {
-            val page = api.history(before = null, limit = HISTORY_PAGE, scope = historyScope())
+            val page = api.history(before = null, limit = HISTORY_PAGE, scope = historyScope(), shape = historyShape())
             store.importHistory(page.items)
             store.putMeta(ChatStore.META_HISTORY_OLDEST, page.items.minOfOrNull { it.id }?.toString().orEmpty())
             store.putMeta(ChatStore.META_HISTORY_MORE, if (page.more) "1" else "0")
@@ -476,7 +574,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
             val newest = store.newestAt() ?: return
             var before: Long? = null
             repeat(GAP_PAGES) {
-                val page = api.history(before, HISTORY_PAGE, historyScope())
+                val page = api.history(before, HISTORY_PAGE, historyScope(), historyShape())
                 store.importHistory(page.items, after = newest - GAP_OVERLAP_MS)
                 val oldest = page.items.minOfOrNull { it.id }
                 val oldestAt = page.items.minOfOrNull { ChatStore.parseInstant(it.at) }
@@ -488,7 +586,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
 
     /** 사용자가 기록을 다시 불러오라고 했을 때. 가장 최근 쪽을 한 번 더 받아 빠진 것을 메운다. */
     suspend fun refreshHistory(): Result<Int> = runCatching {
-        val page = api.history(before = null, limit = HISTORY_PAGE, scope = historyScope())
+        val page = api.history(before = null, limit = HISTORY_PAGE, scope = historyScope(), shape = historyShape())
         val newest = store.newestAt()
         store.importHistory(page.items, after = newest?.minus(GAP_OVERLAP_MS))
     }
@@ -502,7 +600,7 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
         if (store.meta(ChatStore.META_HISTORY_MORE) != "1") return false
         val oldest = store.meta(ChatStore.META_HISTORY_OLDEST)?.toLongOrNull() ?: return false
         return try {
-            val page = api.history(before = oldest, limit = HISTORY_PAGE, scope = historyScope())
+            val page = api.history(before = oldest, limit = HISTORY_PAGE, scope = historyScope(), shape = historyShape())
             store.importHistory(page.items)
             store.putMeta(ChatStore.META_HISTORY_OLDEST, page.items.minOfOrNull { it.id }?.toString() ?: oldest.toString())
             store.putMeta(ChatStore.META_HISTORY_MORE, if (page.more) "1" else "0")
@@ -898,6 +996,9 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
     companion object {
         private const val TAG = "LucentHub"
         private const val ACK_DELAY_MS = 1_000L
+        private const val SEEN_DELAY_MS = 1_000L
+        /** 푸시 `clear`를 받고 이 기기의 마지막 번호를 묻는 데 쓰는 시간. 넘으면 번호를 아는 알림만 치운다. */
+        private const val CLEAR_ME_TIMEOUT_MS = 8_000L
         private const val TYPING_HOLD_MS = 6_000L
         private const val ACTIVITY_HOLD_MS = 20_000L
         private const val PRESS_LOCK_MS = 8_000L

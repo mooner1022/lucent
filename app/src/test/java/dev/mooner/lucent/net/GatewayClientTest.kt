@@ -291,6 +291,25 @@ class GatewayClientTest {
         gw.stop()
     }
 
+    @Test fun `번호가 있는 모르는 프레임과 sent, seen, alert는 버리지 않고 건넨다`() {
+        server.enqueue(script { ws ->
+            ws.send(welcome)
+            ws.send("""{"type":"sent","seq":6,"body":"내일 일정 알려 줘","conversation":"app:cl-2","from":{"client":"cl-2","name":"데스크톱"}}""")
+            ws.send("""{"type":"notes","rev":4}""") // 번호 없는 모르는 type은 버린다
+            ws.send("""{"type":"future_thing","seq":7}""")
+            ws.send("""{"type":"seen","seq":7}""")
+            ws.send("""{"type":"alert","seq":6}""")
+        })
+        val gw = client(Config(base()))
+        gw.start()
+        assertTrue(await { gw.frames.receive() } is ServerFrame.WelcomeFrame)
+        assertEquals("데스크톱", (await { gw.frames.receive() } as ServerFrame.Sent).fromName)
+        assertEquals(7L, (await { gw.frames.receive() } as ServerFrame.UnknownNumbered).seq)
+        assertEquals(7L, (await { gw.frames.receive() } as ServerFrame.Seen).seq)
+        assertEquals(6L, (await { gw.frames.receive() } as ServerFrame.Alert).seq)
+        gw.stop()
+    }
+
     @Test fun `읽을 수 없는 프레임이 와도 연결은 그대로다`() {
         server.enqueue(script { ws ->
             ws.send(welcome)

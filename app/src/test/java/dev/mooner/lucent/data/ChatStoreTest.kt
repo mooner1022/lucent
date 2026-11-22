@@ -261,4 +261,114 @@ class ChatStoreTest {
         assertEquals(0L, store.lastSeq())
         assertTrue(store.isEmpty())
     }
+
+    // ------------------------------------------------------------------ 한 대화(결정 0066·0067)
+
+    private val doc = FileRef("f_9c1e0a7b2d4f", "원문.md", 1834, "text/markdown", "text")
+
+    @Test fun `sent는 다른 기기의 이름과 고른 글 표지를 지닌 내 말로 저장된다`() = runBlocking {
+        store.applyFrame(
+            ServerFrame.Sent(
+                63, false, "이거 번역해 줘", conversation = "app:cl-desk", fromName = "데스크톱 앱",
+                at = "2026-11-22T08:12:03.512300+00:00", files = listOf(doc), stickerId = "s_1", stickerName = "축하",
+                contextNote = "[고른 글 120자 함께 보냄 · msedge.exe]",
+            ),
+            t0,
+        )
+        val row = items(1).single()
+        assertEquals(Sender.USER, row.sender)
+        assertEquals(Kind.FILES, row.kind)
+        assertEquals("이거 번역해 줘", row.body)
+        assertEquals("데스크톱 앱", row.device)
+        assertEquals("app:cl-desk", row.conversation)
+        assertEquals("[고른 글 120자 함께 보냄 · msedge.exe]", row.contextNote)
+        assertEquals(StickerRef("s_1", "축하"), row.sticker)
+        assertEquals(63L, store.lastSeq())
+        // 내 말은 울리지 않는다: 울렸을 수 있는 번호에 들지 않는다.
+        assertEquals(null, store.meta(ChatStore.META_LAST_ALERT_SEQ))
+    }
+
+    @Test fun `다른 기기 대화의 답은 그 대화를 지닌다`() = runBlocking {
+        store.applyFrame(ServerFrame.Text(92, false, "정리했어요", alert = false, conversation = "app:cl-desk"), t0)
+        val row = items(1).single()
+        assertEquals("app:cl-desk", row.conversation)
+        assertEquals("92", store.meta(ChatStore.META_LAST_ALERT_SEQ))
+    }
+
+    @Test fun `모르는 type은 그리지 않되 번호를 올린다`() = runBlocking {
+        store.applyFrame(ServerFrame.Text(1, false, "글"), t0)
+        store.applyFrame(ServerFrame.UnknownNumbered(2, false, "future_thing"), t0 + 1)
+        assertEquals(2L, store.lastSeq())
+        // 알림이 떴을지 모르므로 울렸을 수 있는 번호에 넣는다.
+        assertEquals("2", store.meta(ChatStore.META_LAST_ALERT_SEQ))
+        assertEquals(1, items(1).size)
+    }
+
+    @Test fun `alert가 가리키는 줄 - 루시아의 글이나 열린 카드만`() = runBlocking {
+        store.applyFrame(ServerFrame.Text(5, false, "브리핑이에요", alert = false), t0)
+        store.applyFrame(ServerFrame.Sent(6, false, "고마워", "app:cl-desk", "데스크톱 앱", null), t0 + 1)
+        store.applyFrame(ServerFrame.CardOpen(7, false, "app:*:aaaaaaaaaaaa", pending, alert = false), t0 + 2)
+        store.applyFrame(ServerFrame.CardOpen(8, false, "app:*:bbbbbbbbbbbb", pending, alert = false), t0 + 3)
+        store.applyFrame(ServerFrame.CardClosed(9, false, "app:*:bbbbbbbbbbbb", closed), t0 + 4)
+        items(4)
+        assertEquals("브리핑이에요", store.alertable(5)?.body)
+        assertEquals(null, store.alertable(6))
+        assertEquals("app:*:aaaaaaaaaaaa", store.alertable(7)?.ref)
+        // 이미 닫힌 카드는 알리지 않는다.
+        assertEquals(null, store.alertable(8))
+        assertEquals(null, store.alertable(99))
+    }
+
+    @Test fun `기록의 새 모양 - 조각마다 한 줄, 파일은 마지막 조각에`() = runBlocking {
+        store.importHistory(listOf(HistoryItem(
+            1203, "2026-11-22T00:10:09+00:00", "lucia", "app:cl-1", "정리해서 드릴게요.\n\n한 장으로 줄였어요.",
+            parts = listOf("정리해서 드릴게요.", "한 장으로 줄였어요."), files = listOf(doc),
+        )))
+        val rows = items(2)
+        assertEquals(listOf("정리해서 드릴게요.", "한 장으로 줄였어요."), rows.map { it.body })
+        assertEquals(listOf(Kind.TEXT, Kind.FILES), rows.map { it.kind })
+        assertEquals(listOf("f_9c1e0a7b2d4f"), rows[1].files.map { it.id })
+        // 같은 기록을 다시 받아도 다시 넣지 않는다.
+        assertEquals(0, store.importHistory(listOf(HistoryItem(1203, "2026-11-22T00:10:09+00:00", "lucia", "app:cl-1", "정리해서 드릴게요.\n\n한 장으로 줄였어요."))))
+    }
+
+    @Test fun `예전 모양으로 받은 기록은 새 모양으로 다시 받아도 한 번만 보인다`() = runBlocking {
+        store.importHistory(listOf(history(1203, "2026-11-22T00:10:09+00:00", "lucia", "하나\n\n둘")))
+        items(1)
+        val again = HistoryItem(1203, "2026-11-22T00:10:09+00:00", "lucia", "app:cl-1", "하나\n\n둘", parts = listOf("하나", "둘"))
+        assertEquals(0, store.importHistory(listOf(again)))
+    }
+
+    @Test fun `sent와 기록의 같은 말 - 설명 줄이 더 붙고 시각이 늦어도 한 번만 보인다`() = runBlocking {
+        store.applyFrame(
+            ServerFrame.Sent(63, false, "이거 번역해 줘", "app:cl-desk", "데스크톱 앱", null,
+                files = listOf(doc), contextNote = "[고른 글 120자 함께 보냄 · msedge.exe]"),
+            ChatStore.parseInstant("2026-11-22T08:12:03+00:00"),
+        )
+        items(1)
+        // 예전 모양: 파일 설명 줄과 고른 글 표지가 본문에 붙어 있다. 앞의 일을 하느라 기록의 시각이 40초 늦다.
+        val old = HistoryItem(500, "2026-11-22T08:12:43+00:00", "user", "app:cl-desk",
+            "이거 번역해 줘\n[첨부: 원문.md]\n[고른 글 120자 함께 보냄 · msedge.exe]")
+        assertEquals(0, store.importHistory(listOf(old)))
+        // 새 모양: 파일 ID로 맞춘다.
+        val shaped = HistoryItem(501, "2026-11-22T08:12:43+00:00", "user", "app:cl-desk",
+            "다른 글\n[고른 글 120자 함께 보냄 · msedge.exe]", files = listOf(doc))
+        assertEquals(0, store.importHistory(listOf(shaped)))
+        assertEquals(1, items(1).size)
+    }
+
+    @Test fun `기록의 고른 글 표지는 글에서 떼어 표지로 둔다`() = runBlocking {
+        store.importHistory(listOf(history(7, "2026-11-22T08:12:43+00:00", "user", "요약해 줘\n[고른 글 4000자 함께 보냄]", conv = "app:cl-desk")))
+        val row = items(1).single()
+        assertEquals("요약해 줘", row.body)
+        assertEquals("[고른 글 4000자 함께 보냄]", row.contextNote)
+    }
+
+    @Test fun `기록에 보인 지워진 파일은 받을 수 없는 파일로 남는다`() = runBlocking {
+        val gone = FileRef("f_0a1b2c3d4e5f", "옛.md", 90, "text/markdown", "text", gone = true, reachable = false)
+        store.importHistory(listOf(HistoryItem(9, "2026-11-22T00:10:09+00:00", "lucia", "app:cl-1", "예전 파일이에요", files = listOf(gone))))
+        val file = items(1).single().files.single()
+        assertTrue(file.gone)
+        assertFalse(file.available)
+    }
 }

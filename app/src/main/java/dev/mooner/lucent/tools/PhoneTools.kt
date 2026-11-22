@@ -121,7 +121,8 @@ class PhoneTools(
             when (ask(ReplyAsk(notice.draft.app, to, text))) {
                 AskAnswer.YES -> Unit
                 AskAnswer.NO -> return InvokeReply.Failed(ErrorCodes.DENIED, USER_DECLINED)
-                AskAnswer.LATE -> return InvokeReply.Failed(ErrorCodes.DENIED, USER_LATE)
+                // 거절과 "보지 못했다"는 다른 말이다. 루시아가 사용자에게 바르게 전하도록 가려 쓴다(7.1).
+                AskAnswer.LATE -> return InvokeReply.Failed(ErrorCodes.TIMEOUT, USER_LATE)
                 AskAnswer.AWAY -> return InvokeReply.Failed(ErrorCodes.UNAVAILABLE, NOT_ON_SCREEN)
             }
         }

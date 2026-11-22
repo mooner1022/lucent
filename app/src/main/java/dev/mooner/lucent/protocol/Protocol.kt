@@ -39,8 +39,15 @@ data class FileRef(
     val size: Long = 0,
     val mime: String = "application/octet-stream",
     val kind: String = "other",
+    /** 기록(`history`, `shape: 2`)의 파일만: 보관 기간이 지나 지워졌다(6.2). */
+    val gone: Boolean = false,
+    /** 기록의 파일만: 이 토큰이 받을 수 있는가(6.2, 8.5). 실시간 프레임의 파일은 늘 받을 수 있다. */
+    val reachable: Boolean = true,
 ) {
     val isImage get() = kind == "image"
+
+    /** 받아 볼 수 있는 파일인가. 지워졌거나 이 기기에서 받을 수 없는 파일은 이름만 보인다. */
+    val available get() = !gone && reachable
 }
 
 @Serializable
@@ -113,6 +120,10 @@ data class HistoryItem(
     val from: String,
     val conversation: String? = null,
     val body: String = "",
+    /** `shape: 2`(6.2): 여러 `text` 프레임으로 나뉘어 갔던 말의 조각들. 하나로 갔으면 없다. */
+    val parts: List<String>? = null,
+    /** `shape: 2`(6.2): 이 말에 붙은 파일. 있으면 `body`에서 파일 설명 줄이 빠져 있다. */
+    val files: List<FileRef>? = null,
 )
 
 @Serializable
@@ -138,6 +149,12 @@ data class Capabilities(
     val attachments: Boolean = false,
     @SerialName("max_upload_bytes") val maxUploadBytes: Long = 31_457_280,
     @SerialName("max_message_files") val maxMessageFiles: Int = 10,
+    /** `2`면 `history`의 `shape: 2`(조각과 파일)를 안다(6.2, 결정 0066). */
+    @SerialName("history_shape") val historyShape: Int = 0,
+    /** `seen`·`alert` 프레임을 주고받는다(5.5, 5.6, 11.1, 결정 0066). 없으면 `seen`을 보내지 않는다(예전 데몬은 `bad_frame`). */
+    val seen: Boolean = false,
+    /** 앱이 기기가 여럿이어도 한 대화다(결정 0067). 다른 기기에서 한 말이 `sent`로 온다(5.5, 12.8). */
+    @SerialName("shared_conversation") val sharedConversation: Boolean = false,
 )
 
 // ---------------------------------------------------------------- 이모지·스티커(docs/app-expressions.md)
@@ -152,10 +169,11 @@ data class ExpressionsSummary(
 
 /**
  * 루시아의 프로필(8.7). `welcome`·`GET /v1/me`의 `profile`, `GET /v1/profile`, `profile` 프레임이 같은 모양이다.
- * [avatar]가 null이면 루시아가 정한 그림이 없다(앱의 기본 모습을 쓴다).
+ * [avatar]가 null이면 정한 그림이 없다(앱의 기본 모습을 쓴다). [name]은 사용자가 관리 페이지에서 정한 보이는 이름이다
+ * (결정 0064, 정하지 않았으면 `"Lucia"`). 없으면(null) 이름이 붙기 전의 데몬이라 앱의 기본 이름을 쓴다.
  */
 @Serializable
-data class Profile(val avatar: Avatar? = null)
+data class Profile(val name: String? = null, val avatar: Avatar? = null)
 
 /**
  * 루시아가 정한 프로필 그림. [id]는 내용 해시(`a_` + 16진수 24자)라 그림이 바뀌면 바뀐다. 캐시의 열쇠다.
@@ -293,19 +311,65 @@ sealed interface ServerFrame {
         val replay: Boolean
     }
 
-    data class Text(override val seq: Long, override val replay: Boolean, val body: String) : Numbered
-    data class Note(override val seq: Long, override val replay: Boolean, val body: String) : Numbered
-    data class Files(override val seq: Long, override val replay: Boolean, val body: String, val files: List<FileRef>) : Numbered
-    data class CardOpen(override val seq: Long, override val replay: Boolean, val ref: String, val card: Card) : Numbered
-    data class CardClosed(override val seq: Long, override val replay: Boolean, val ref: String, val card: Card) : Numbered
+    /**
+     * 울릴 수 있는 프레임(`text`·`files`·`card`·`sticker`, 5.4). [alert]가 false면 다른 기기가 울린다: 화면에 놓기만 하고
+     * 알리지 않는다. 데몬이 나중에 `alert{seq}`로 지금 알리라고 할 수 있다(5.5, 11.1).
+     */
+    sealed interface Alerting : Numbered {
+        val alert: Boolean
+    }
+
+    // [conversation]은 다른 앱(기기)의 대화에 속한 프레임에만 붙는다(5.5, 결정 0067): 다른 기기에서 한 말의 답, 그 대화의 카드.
+    // 없으면 이 앱의 대화나 앱 모두의 대화(`app:*`)다.
+    data class Text(
+        override val seq: Long, override val replay: Boolean, val body: String,
+        override val alert: Boolean = true, val conversation: String? = null,
+    ) : Alerting
+    data class Note(override val seq: Long, override val replay: Boolean, val body: String, val conversation: String? = null) : Numbered
+    data class Files(
+        override val seq: Long, override val replay: Boolean, val body: String, val files: List<FileRef>,
+        override val alert: Boolean = true, val conversation: String? = null,
+    ) : Alerting
+    data class CardOpen(
+        override val seq: Long, override val replay: Boolean, val ref: String, val card: Card,
+        override val alert: Boolean = true, val conversation: String? = null,
+    ) : Alerting
+    data class CardClosed(
+        override val seq: Long, override val replay: Boolean, val ref: String, val card: Card, val conversation: String? = null,
+    ) : Numbered
     /** 스티커 한 장(app-expressions.md 5.1). 보통 같은 답의 `text` 바로 뒤에 온다. */
-    data class Sticker(override val seq: Long, override val replay: Boolean, val id: String, val name: String) : Numbered
+    data class Sticker(
+        override val seq: Long, override val replay: Boolean, val id: String, val name: String,
+        override val alert: Boolean = true, val conversation: String? = null,
+    ) : Alerting
+
+    /**
+     * 사용자가 **다른 기기**의 앱에서 한 말의 사본(5.5, 결정 0067). 사용자 자신의 말풍선으로 그린다. 울리지 않는다.
+     * [body]는 보낸 글 그대로(스티커 줄·파일 설명 줄·고른 글 표지가 없다), [contextNote]는 고른 글 표지 한 줄이다.
+     * [fromName]은 그 앱을 발급할 때 붙인 이름, [at]은 데몬이 말을 받은 시각(RFC 3339)이다.
+     */
+    data class Sent(
+        override val seq: Long, override val replay: Boolean, val body: String,
+        val conversation: String?, val fromName: String?, val at: String?,
+        val files: List<FileRef> = emptyList(), val stickerId: String? = null, val stickerName: String? = null,
+        val contextNote: String? = null,
+    ) : Numbered
+
+    /** 번호가 있지만 모르는 `type`. 그리지 않되 번호는 올리고 `ack`한다(5.4). */
+    data class UnknownNumbered(override val seq: Long, override val replay: Boolean, val type: String) : Numbered
 
     data object Typing : ServerFrame
     /** 이모지·스티커 목록이 바뀌었다(번호 없음, 3.3). 저장한 판과 다르면 목록을 다시 받는다. */
     data class Expressions(val version: String) : ServerFrame
-    /** 루시아의 프로필 그림이 바뀌었거나 없어졌다(번호 없음, 5.5). [avatar]가 null이면 기본 모습으로 돌아간다. */
-    data class ProfileChanged(val avatar: Avatar?) : ServerFrame
+    /**
+     * 프로필 그림이나 이름이 바뀌었다(번호 없음, 5.5). 늘 지금의 이름과 그림 전체가 온다. [avatar]가 null이면 기본 모습으로,
+     * [name]이 null이면(이름이 붙기 전의 데몬) 기본 이름으로 돌아간다.
+     */
+    data class ProfileChanged(val name: String?, val avatar: Avatar?) : ServerFrame
+    /** 다른 기기에서 이 번호(이 앱의 번호)까지 봤다(번호 없음, 5.5). 그 번호까지의 알림을 치운다. 되돌려 `seen`을 보내지 않는다. */
+    data class Seen(val seq: Long) : ServerFrame
+    /** 울리지 않고 놓아 둔(`alert: false`) 이 번호의 프레임을 지금 알려라(번호 없음, 5.5, 11.1). */
+    data class Alert(val seq: Long) : ServerFrame
     data class Accepted(val id: String?) : ServerFrame
     data class Result(val id: String, val ok: Boolean, val data: JsonElement?, val error: ApiError?) : ServerFrame
     data class Invoke(val id: String, val method: String, val params: JsonElement?) : ServerFrame
@@ -342,6 +406,9 @@ fun parseServerFrame(text: String): ServerFrame {
     fun long(key: String) = obj[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.longOrNull
     fun seq() = long("seq") ?: throw FrameParseException("$type 프레임에 seq 없음")
     val replay = flag("replay")
+    // 필드가 없으면 울린다(5.4). `false`일 때만 놓아 둔다.
+    val alert = (obj["alert"] as? JsonPrimitive)?.contentOrNull != "false"
+    val conversation = (obj["conversation"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotEmpty() }
     return try {
         when (type) {
             "welcome" -> ServerFrame.WelcomeFrame(LucentJson.decodeFromJsonElement<Welcome>(obj))
@@ -351,23 +418,40 @@ fun parseServerFrame(text: String): ServerFrame {
                 last = long("last") ?: 0,
                 truncated = flag("truncated"),
             )
-            "text" -> ServerFrame.Text(seq(), replay, str("body").orEmpty())
-            "note" -> ServerFrame.Note(seq(), replay, str("body").orEmpty())
-            "files" -> ServerFrame.Files(
-                seq(), replay, str("body").orEmpty(),
-                obj["files"]?.let { LucentJson.decodeFromJsonElement<List<FileRef>>(it) }.orEmpty(),
+            "text" -> ServerFrame.Text(seq(), replay, str("body").orEmpty(), alert, conversation)
+            "note" -> ServerFrame.Note(seq(), replay, str("body").orEmpty(), conversation)
+            "files" -> ServerFrame.Files(seq(), replay, str("body").orEmpty(), files(obj), alert, conversation)
+            "card" -> ServerFrame.CardOpen(
+                seq(), replay, str("ref").orEmpty(), LucentJson.decodeFromJsonElement(obj["card"] ?: JsonObject(emptyMap())), alert, conversation,
             )
-            "card" -> ServerFrame.CardOpen(seq(), replay, str("ref").orEmpty(), LucentJson.decodeFromJsonElement(obj["card"] ?: JsonObject(emptyMap())))
-            "card_closed" -> ServerFrame.CardClosed(seq(), replay, str("ref").orEmpty(), LucentJson.decodeFromJsonElement(obj["card"] ?: JsonObject(emptyMap())))
+            "card_closed" -> ServerFrame.CardClosed(
+                seq(), replay, str("ref").orEmpty(), LucentJson.decodeFromJsonElement(obj["card"] ?: JsonObject(emptyMap())), conversation,
+            )
             "sticker" -> {
                 val sticker = obj["sticker"] as? JsonObject
-                fun field(key: String) = sticker?.get(key)?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull.orEmpty()
-                ServerFrame.Sticker(seq(), replay, field("id"), field("name"))
+                ServerFrame.Sticker(seq(), replay, sticker.field("id").orEmpty(), sticker.field("name").orEmpty(), alert, conversation)
+            }
+            "sent" -> {
+                val from = obj["from"] as? JsonObject
+                val sticker = obj["sticker"] as? JsonObject
+                ServerFrame.Sent(
+                    seq(), replay, str("body").orEmpty(),
+                    conversation = conversation,
+                    fromName = from.field("name")?.takeIf { it.isNotBlank() },
+                    at = str("at"),
+                    files = files(obj),
+                    stickerId = sticker.field("id")?.takeIf { it.isNotEmpty() },
+                    stickerName = sticker.field("name")?.takeIf { it.isNotEmpty() },
+                    contextNote = str("context_note")?.takeIf { it.isNotBlank() },
+                )
             }
             "expressions" -> ServerFrame.Expressions(str("version").orEmpty())
             "profile" -> ServerFrame.ProfileChanged(
+                str("name"),
                 (obj["avatar"] as? JsonObject)?.let { LucentJson.decodeFromJsonElement<Avatar>(it) },
             )
+            "seen" -> ServerFrame.Seen(seq())
+            "alert" -> ServerFrame.Alert(seq())
             "typing" -> ServerFrame.Typing
             "accepted" -> ServerFrame.Accepted(str("id"))
             "result" -> ServerFrame.Result(
@@ -379,7 +463,8 @@ fun parseServerFrame(text: String): ServerFrame {
             "invoke" -> ServerFrame.Invoke(str("id").orEmpty(), str("method").orEmpty(), obj["params"])
             "error" -> ServerFrame.Error(str("code").orEmpty(), str("message").orEmpty())
             "pong" -> ServerFrame.Pong
-            else -> ServerFrame.Unknown(type)
+            // 모르는 type이라도 번호가 있으면 상자에 남는 프레임이다. 번호를 올리고 ack해야 상자가 빈다(5.4).
+            else -> long("seq")?.let { ServerFrame.UnknownNumbered(it, replay, type) } ?: ServerFrame.Unknown(type)
         }
     } catch (e: FrameParseException) {
         throw e
@@ -387,6 +472,13 @@ fun parseServerFrame(text: String): ServerFrame {
         throw FrameParseException("$type 프레임을 읽지 못함", e)
     }
 }
+
+/** 객체의 글 필드. 객체가 아니거나 글이 아니면 null이다. */
+private fun JsonObject?.field(key: String): String? =
+    (this?.get(key) as? JsonPrimitive)?.takeIf { it !is JsonNull }?.contentOrNull
+
+private fun files(obj: JsonObject): List<FileRef> =
+    obj["files"]?.takeIf { it !is JsonNull }?.let { LucentJson.decodeFromJsonElement<List<FileRef>>(it) }.orEmpty()
 
 // ---------------------------------------------------------------- 앱 → 데몬 프레임(5.6)
 
@@ -435,6 +527,15 @@ object ClientFrames {
         put("seq", seq)
     }.toString()
 
+    /**
+     * 사용자가 이 번호(이 앱의 번호)까지 **모두** 봤다(5.6, 12.6). `capabilities.seen`이 있을 때만 보낸다. 모자라게 알린다:
+     * 잘못 알린 `seen`은 휴대폰으로 넘어갈 승인 카드를 막는다.
+     */
+    fun seen(seq: Long): String = buildJsonObject {
+        put("type", "seen")
+        put("seq", seq)
+    }.toString()
+
     fun presence(foreground: Boolean): String = buildJsonObject {
         put("type", "presence")
         put("state", if (foreground) "foreground" else "background")
@@ -455,7 +556,7 @@ object ClientFrames {
         put("data", data)
     }.toString()
 
-    /** 데몬의 `invoke`에 대한 거절. [code]는 앱이 정한다(권장: `denied`, `unavailable`, `bad_params`, `failed`). */
+    /** 데몬의 `invoke`에 대한 거절. [code]는 앱이 정한다(권장: `denied`, `timeout`, `unavailable`, `bad_params`, `failed`). */
     fun invokeError(id: String, code: String, message: String): String = buildJsonObject {
         put("type", "result")
         put("id", id)
@@ -498,6 +599,7 @@ object ErrorCodes {
     const val DENIED = "denied"
     /** 지금은 할 수 없다(위치를 못 잡았다, 알림이 사라졌다 등). */
     const val UNAVAILABLE = "unavailable"
+    // 사용자가 제때 답하지 않았다는 답은 [TIMEOUT]으로 한다. 거절([DENIED])과 가려 쓴다(7.1).
 
     /** 재연결해도 소용없는 오류. 사용자가 토큰을 다시 넣어야 한다(12.3). */
     fun endsSession(code: String) = code == UNAUTHORIZED || code == UNSUPPORTED_ROLE

@@ -261,4 +261,113 @@ class ProtocolTest {
         val listed = parseServerFrame("""{"type":"resumed","from":1,"to":2,"last":2,"truncated":[true]}""") as ServerFrame.Resumed
         assertTrue(!listed.truncated)
     }
+
+    // ------------------------------------------------------------ 결정 0064·0066·0067(app-api-changes.md 2026-11-21, 2026-11-22)
+
+    @Test fun `welcome - 이름, seen, 한 대화, 기록 모양의 표시`() {
+        val w = (parseServerFrame(
+            """{"type":"welcome","v":2,"client":"cl-3f9a0c12de","seq":57,
+              "profile":{"name":"달빛","avatar":null},
+              "capabilities":{"max_message_chars":8000,"history_shape":2,"owner_files":true,"tool_when":true,"desk":true,
+              "presence_away":true,"message_context":true,"seen":true,"shared_conversation":true}}""",
+        ) as ServerFrame.WelcomeFrame).welcome
+        assertEquals("달빛", w.profile?.name)
+        assertTrue(w.capabilities.seen)
+        assertTrue(w.capabilities.sharedConversation)
+        assertEquals(2, w.capabilities.historyShape)
+        // 표시가 없는 예전 데몬: seen을 보내지 않고 기록은 예전 모양으로 읽는다.
+        val old = (parseServerFrame("""{"type":"welcome","v":2,"client":"cl-1","seq":1,"profile":{"avatar":null}}""") as ServerFrame.WelcomeFrame).welcome
+        assertFalse(old.capabilities.seen)
+        assertFalse(old.capabilities.sharedConversation)
+        assertEquals(0, old.capabilities.historyShape)
+        assertNull(old.profile?.name)
+    }
+
+    @Test fun `profile 프레임 - 늘 이름과 그림 전체가 온다`() {
+        val frame = parseServerFrame("""{"type":"profile","name":"Lucia","avatar":null}""") as ServerFrame.ProfileChanged
+        assertEquals("Lucia", frame.name)
+        assertNull(frame.avatar)
+        assertNull((parseServerFrame("""{"type":"profile","avatar":null}""") as ServerFrame.ProfileChanged).name)
+    }
+
+    @Test fun `alert false와 conversation - 필드가 없으면 울리고 이 앱의 대화다`() {
+        val held = parseServerFrame("""{"type":"text","seq":92,"body":"정리했어요","conversation":"app:cl-desk","alert":false}""") as ServerFrame.Text
+        assertFalse(held.alert)
+        assertEquals("app:cl-desk", held.conversation)
+        val plain = parseServerFrame("""{"type":"text","seq":93,"body":"네"}""") as ServerFrame.Text
+        assertTrue(plain.alert)
+        assertNull(plain.conversation)
+        val card = parseServerFrame("""{"type":"card","seq":94,"ref":"app:*:5b0e1f3a9c2d","card":{"tone":"pending"},"alert":false}""") as ServerFrame.CardOpen
+        assertFalse(card.alert)
+        val sticker = parseServerFrame("""{"type":"sticker","seq":95,"sticker":{"id":"s_1","name":"축하"},"alert":false,"replay":true}""") as ServerFrame.Sticker
+        assertFalse(sticker.alert)
+        assertTrue(sticker.replay)
+        val files = parseServerFrame("""{"type":"files","seq":96,"body":"","files":[{"id":"f_1","name":"a.md"}],"alert":"false"}""") as ServerFrame.Files
+        // 글로 온 "false"도 놓아 두라는 뜻으로 읽는다. 그 밖의 값(엉뚱한 모양)은 울린다.
+        assertFalse(files.alert)
+        assertTrue((parseServerFrame("""{"type":"text","seq":97,"body":"","alert":{"x":1}}""") as ServerFrame.Text).alert)
+    }
+
+    @Test fun `sent - 다른 기기에서 한 내 말(사양 5_5의 예시)`() {
+        val sent = parseServerFrame(
+            """{"type": "sent", "seq": 63, "body": "이거 번역해 줘",
+             "conversation": "app:cl-3f9a0c12de", "from": {"client": "cl-3f9a0c12de", "name": "데스크톱 앱"},
+             "at": "2026-11-22T08:12:03.512300+00:00",
+             "files": [{"id": "f_9c1e0a7b2d4f", "name": "원문.md", "size": 1834, "mime": "text/markdown", "kind": "text"}],
+             "sticker": {"id": "s_7a1c0e9b3f52", "name": "축하"},
+             "context_note": "[고른 글 120자 함께 보냄 · msedge.exe]"}""",
+        ) as ServerFrame.Sent
+        assertEquals(63, sent.seq)
+        assertEquals("이거 번역해 줘", sent.body)
+        assertEquals("app:cl-3f9a0c12de", sent.conversation)
+        assertEquals("데스크톱 앱", sent.fromName)
+        assertEquals("2026-11-22T08:12:03.512300+00:00", sent.at)
+        assertEquals("f_9c1e0a7b2d4f", sent.files.single().id)
+        assertEquals("s_7a1c0e9b3f52", sent.stickerId)
+        assertEquals("축하", sent.stickerName)
+        assertEquals("[고른 글 120자 함께 보냄 · msedge.exe]", sent.contextNote)
+        // 붙은 것이 없으면 필드가 없다.
+        val bare = parseServerFrame("""{"type":"sent","seq":64,"body":"네","from":{"client":"cl-1"}}""") as ServerFrame.Sent
+        assertTrue(bare.files.isEmpty())
+        assertNull(bare.stickerId)
+        assertNull(bare.contextNote)
+        assertNull(bare.fromName)
+    }
+
+    @Test fun `seen과 alert - 번호 없는 프레임`() {
+        assertEquals(58L, (parseServerFrame("""{"type":"seen","seq":58}""") as ServerFrame.Seen).seq)
+        assertEquals(92L, (parseServerFrame("""{"type":"alert","seq":92}""") as ServerFrame.Alert).seq)
+        assertEquals("""{"type":"seen","seq":58}""", ClientFrames.seen(58))
+    }
+
+    @Test fun `모르는 type도 번호가 있으면 번호를 올려야 하는 프레임이다(5_4)`() {
+        val unknown = parseServerFrame("""{"type":"future_thing","seq":70,"replay":true,"x":1}""")
+        assertTrue(unknown is ServerFrame.UnknownNumbered)
+        unknown as ServerFrame.UnknownNumbered
+        assertEquals(70L, unknown.seq)
+        assertTrue(unknown.replay)
+        // 번호가 없으면 버리는 프레임이다(notes, tasks 등).
+        assertTrue(parseServerFrame("""{"type":"notes","rev":45}""") is ServerFrame.Unknown)
+        assertTrue(parseServerFrame("""{"type":"tasks"}""") is ServerFrame.Unknown)
+    }
+
+    @Test fun `기록의 새 모양 - 조각과 파일(사양 6_2의 예시)`() {
+        val page = LucentJson.decodeFromString(
+            HistoryPage.serializer(),
+            """{"items":[{"id": 1203, "at": "2026-11-22T00:10:09+00:00", "from": "lucia", "conversation": "app:cl-3f9a0c12de",
+             "body": "정리해서 드릴게요.\n\n한 장으로 줄였어요.",
+             "parts": ["정리해서 드릴게요.", "한 장으로 줄였어요."],
+             "files": [{"id": "f_9c1e0a7b2d4f", "name": "정리.md", "size": 1834, "mime": "text/markdown", "kind": "text", "reachable": true},
+                       {"id": "f_0a1b2c3d4e5f", "name": "옛.md", "size": 90, "mime": "text/markdown", "kind": "text",
+                        "gone": true, "reachable": false}]}],"more":false}""",
+        )
+        val item = page.items.single()
+        assertEquals(listOf("정리해서 드릴게요.", "한 장으로 줄였어요."), item.parts)
+        val (live, gone) = item.files!!
+        assertTrue(live.available)
+        assertTrue(gone.gone)
+        assertFalse(gone.available)
+        // 실시간 프레임의 파일에는 이 필드가 없다: 받을 수 있다.
+        assertTrue(FileRef("f_1").available)
+    }
 }

@@ -44,11 +44,18 @@ data class StoredItem(
     val seq: Long = 0,
     val delivery: Delivery = Delivery.SENT,
     val localId: String? = null,
-    /** 가져온 기록의 대화 ID. 이 앱의 대화가 아니면(Discord 등) 출처 표시를 단다. */
+    /**
+     * 이 줄이 속한 대화 ID. 가져온 기록과, 다른 기기(앱)의 대화에 속한 실시간 프레임(결정 0067)에 있다. 이 앱의 대화가
+     * 아니면(다른 기기, Discord 등) 출처를 단다([dev.mooner.lucent.ui.chat.sourceOf]).
+     */
     val conversation: String? = null,
     /**
      * 이 말에 붙은 스티커(app-expressions.md 5장). 스티커만 있는 줄은 [body]가 비어 있다: 루시아의 `sticker` 프레임과
      * 글 없이 보낸 내 스티커가 그렇다. 글과 함께 보낸 것과 기록에서 읽은 것은 글과 스티커가 한 줄에 있다.
      */
     val sticker: StickerRef? = null,
+    /** 다른 기기에서 한 내 말(`sent`)의 그 앱 이름(`from.name`). 기록에서 읽은 말에는 없다. */
+    val device: String? = null,
+    /** 내 말에 함께 보낸 고른 글의 표지(`[고른 글 N자 함께 보냄 · 프로그램]`). 고른 글 자체는 없다. */
+    val contextNote: String? = null,
 )

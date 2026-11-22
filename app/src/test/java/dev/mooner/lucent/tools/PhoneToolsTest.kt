@@ -135,8 +135,11 @@ class PhoneToolsTest {
         val id = recordMessage()
         answer = AskAnswer.NO
         assertEquals(PhoneTools.USER_DECLINED, failed(reply(id)).message)
+        assertEquals(ErrorCodes.DENIED, failed(reply(id)).code)
+        // 거절과 "제때 보지 못했다"는 다른 코드다(사양 7.1).
         answer = AskAnswer.LATE
         assertEquals(PhoneTools.USER_LATE, failed(reply(id)).message)
+        assertEquals(ErrorCodes.TIMEOUT, failed(reply(id)).code)
         answer = AskAnswer.AWAY
         assertEquals(ErrorCodes.UNAVAILABLE, failed(reply(id)).code)
         assertTrue(shadowOf(app).broadcastIntents.none { it.action == "test.REPLY" })

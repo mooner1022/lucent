@@ -174,6 +174,18 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         pendingSave?.let { outState.putString(KEY_PENDING_SAVE, LucentJson.encodeToString(FileRef.serializer(), it)) }
     }
 
+    // 대화 화면이 정말 앞에 있는 동안만 받은 것을 봤다고 알린다(사양 12.6). 그 위에 다른 화면(설정, 넘겨받기, 크게 보기)이
+    // 덮이면 멈춘다. 처음 설정으로 넘어간 경우(binding 전)에도 허브에는 알려도 된다(볼 대화가 없다).
+    override fun onResume() {
+        super.onResume()
+        hub.chatShown(true)
+    }
+
+    override fun onPause() {
+        hub.chatShown(false)
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -415,6 +427,8 @@ class ChatActivity : AppCompatActivity(), ChatActions {
                 launch { replyAsk.watch() }
                 // 루시아가 정한 프로필 그림. 없으면 앱의 기본 모습이다. 얼굴을 누르면 크게 본다(onFace).
                 launch { hub.profile.face.collect(::showFace) }
+                // 사용자가 관리 페이지에서 정한 보이는 이름(결정 0064). 없으면 앱의 기본 이름이다.
+                launch { hub.profile.name.collect { showName() } }
                 // 시각이 정하는 것: 하늘의 장면, 다시 연결까지 남은 시간, "한동안 조용했다"는 판단.
                 launch {
                     while (isActive) {
@@ -464,6 +478,22 @@ class ChatActivity : AppCompatActivity(), ChatActions {
     // ------------------------------------------------------------------ 장면
 
     private val renderLater = Runnable { render() }
+
+    /** 보이는 이름: 사용자가 정한 이름, 없으면 앱의 기본 이름. */
+    private fun displayName(): String = hub.profile.name.value ?: getString(R.string.assistant_name)
+
+    /** 이름이 보이는 자리(머리말, 입력창 안내, "쓰는 중"을 읽어 주는 글)를 맞춘다. */
+    private fun showName() {
+        binding.title.text = displayName()
+        adapter.name = displayName()
+        scene?.let { composer.setContext(it.canSend, hintOf(it.hint)) }
+    }
+
+    private fun hintOf(hint: ChatScene.Hint): String = when (hint) {
+        ChatScene.Hint.OFFLINE -> getString(R.string.composer_hint_offline)
+        ChatScene.Hint.PENDING -> getString(R.string.composer_hint_pending)
+        ChatScene.Hint.NORMAL -> getString(R.string.composer_hint, displayName())
+    }
 
     /** 루시아의 얼굴이 보이는 자리 셋(머리말, 대화 줄, 빈 화면의 큰 초상)을 같은 그림으로 맞춘다. */
     private fun showFace(face: Face?) {
@@ -532,14 +562,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         if (next.slot != previous?.slot) showSlot(next.slot, previous?.slot)
         if (next.blockedCode != previous?.blockedCode) showBlocked(next.blockedCode)
         if (next.jump != previous?.jump) showJump(next.jump)
-        composer.setContext(
-            next.canSend,
-            when (next.hint) {
-                ChatScene.Hint.OFFLINE -> R.string.composer_hint_offline
-                ChatScene.Hint.PENDING -> R.string.composer_hint_pending
-                ChatScene.Hint.NORMAL -> R.string.composer_hint
-            },
-        )
+        composer.setContext(next.canSend, hintOf(next.hint))
         showEmpty(empty, next.canSend)
     }
 
@@ -890,12 +913,24 @@ class ChatActivity : AppCompatActivity(), ChatActions {
      * 떠서 얼마나 받았는지 보이고, 닫으면 받기를 그만둔다([FilePreview]).
      */
     override fun onOpenFile(file: FileRef) {
+        if (!available(file)) return
         // 잇달아 두 번 눌러도 시트는 하나만 뜬다.
         if (preview?.isShowing == true) return
         preview = FilePreview.show(this, file, ::onSaveFile)
     }
 
+    /**
+     * 기록에 보인 파일 가운데 보관 기간이 지나 지워졌거나 이 기기에서 받을 수 없는 것(다른 앱이 짧게 둔 파일, 범위가 없는
+     * Discord DM의 파일, 사양 6.2)은 받으러 가지 않고 까닭을 알린다.
+     */
+    private fun available(file: FileRef): Boolean {
+        if (file.available) return true
+        Toast.makeText(this, if (file.gone) R.string.file_gone else R.string.file_unreachable, Toast.LENGTH_SHORT).show()
+        return false
+    }
+
     override fun onSaveFile(file: FileRef) {
+        if (!available(file)) return
         pendingSave = file
         createDocument.launch(file.name)
     }
@@ -942,7 +977,7 @@ class ChatActivity : AppCompatActivity(), ChatActions {
         }
     }
 
-    override fun onFace() = FaceViewer.open(this, hub.profile.face.value)
+    override fun onFace() = FaceViewer.open(this, hub.profile.face.value, displayName())
 
     override fun onRowResized() {
         if (pinnedToEnd && !byHand) binding.messages.post { scrollToBottom(smooth = false) }

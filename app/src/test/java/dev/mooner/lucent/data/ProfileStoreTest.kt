@@ -50,6 +50,7 @@ class ProfileStoreTest {
 
     @Before fun setUp() {
         dir.deleteRecursively()
+        File(app.filesDir, "profile-name").delete()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         served[a] = "IMG-a".toByteArray()
         served[b] = "IMG-b".toByteArray()
@@ -297,5 +298,33 @@ class ProfileStoreTest {
         assertEquals(4, ProfileStore.sampleSize(2048, 264))
         assertEquals(16, ProfileStore.sampleSize(2048, 120))
         assertEquals(1, ProfileStore.sampleSize(2048, 0))
+    }
+
+    // ------------------------------------------------------------------ 보이는 이름(결정 0064)
+
+    @Test fun `이름은 받은 대로 보이고, 다시 켜도 남고, 연결을 해제하면 지운다`() = runBlocking<Unit> {
+        val first = store()
+        assertNull(first.name.value)
+        first.applyName("달빛")
+        assertEquals("달빛", first.name.value)
+        // 연결하지 못해도 마지막으로 받은 이름을 보인다.
+        assertEquals("달빛", store().name.value)
+        // 이름이 붙기 전의 데몬(필드가 없다)이면 기본 이름으로 돌아간다.
+        first.applyName(null)
+        assertNull(first.name.value)
+        assertNull(store().name.value)
+        first.applyName("Lucia")
+        first.clear()
+        assertNull(first.name.value)
+        assertNull(store().name.value)
+    }
+
+    @Test fun `이름은 이모지 없이 한 줄 24자까지`() {
+        assertEquals("Lucia", ProfileStore.cleanName("  Lucia "))
+        assertEquals("달 빛", ProfileStore.cleanName("달\n빛"))
+        assertEquals("루시아", ProfileStore.cleanName("\uD83C\uDF19 루시아"))
+        assertEquals("가".repeat(24), ProfileStore.cleanName("가".repeat(30)))
+        assertNull(ProfileStore.cleanName("   "))
+        assertNull(ProfileStore.cleanName(null))
     }
 }

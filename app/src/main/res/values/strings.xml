@@ -48,7 +48,7 @@
     <string name="chat_jump_end">맨 아래로</string>
     <string name="message_copy">복사</string>
     <string name="message_select">글 고르기</string>
-    <string name="chat_typing">루시아가 쓰는 중이에요</string>
+    <string name="chat_typing">%1$s, 쓰는 중이에요</string>
     <string name="menu_more">더 보기</string>
     <string name="menu_settings">설정</string>
     <string name="menu_handover">브라우저 화면 넘겨받기</string>
@@ -79,7 +79,7 @@
     <string name="history_refreshed">%1$d개를 새로 불러왔어요</string>
     <string name="history_refresh_failed">기록을 불러오지 못했어요</string>
 
-    <string name="composer_hint">루시아에게 말해 보세요…</string>
+    <string name="composer_hint">%1$s에게 말해 보세요…</string>
     <string name="composer_hint_pending">승인하거나 말로 답해 보세요…</string>
     <string name="composer_hint_offline">오프라인이에요. 연결되면 보낼 수 있어요</string>
     <string name="dock_title">승인 대기 %1$d건</string>
@@ -131,7 +131,9 @@
 
     <!-- 출처 -->
     <string name="source_discord">Discord</string>
-    <string name="source_other_app">다른 앱</string>
+    <!-- 다른 기기(앱)에서 한 내 말의 머리(결정 0067). %1$s는 그 앱을 발급할 때 붙인 이름이다. -->
+    <string name="sent_from">%1$s에서</string>
+    <string name="sent_from_other">다른 기기에서</string>
     <string name="source_daemon">알림</string>
 
     <!-- 더하기 시트 -->
@@ -181,6 +183,7 @@
     <string name="file_failed_network">파일을 받지 못했어요. 연결을 확인해 주세요</string>
     <string name="file_gone">보관 기간이 지나 서버에서 지운 파일이에요</string>
     <string name="file_not_found">서버에 없는 파일이에요</string>
+    <string name="file_unreachable">이 기기에서는 받을 수 없는 파일이에요</string>
     <string name="file_no_app">이 파일을 열 수 있는 앱이 없어요. 저장해서 열어 보세요</string>
     <string name="file_share">공유</string>
     <string name="file_open_with">다른 앱</string>
@@ -194,7 +197,7 @@
     <string name="preview_page_title">%1$s · %2$d쪽</string>
     <string name="preview_zoom">%1$s, 누르면 크게 보여요</string>
     <string name="viewer_close">닫기</string>
-    <string name="face_view">루시아의 프로필 그림 크게 보기</string>
+    <string name="face_view">프로필 그림 크게 보기</string>
     <string name="preview_empty">내용이 없는 파일이에요</string>
     <string name="file_meta">%1$s · %2$s</string>
     <string name="file_meta_more">%1$s · %2$s</string>
@@ -203,6 +206,8 @@
     <string name="file_kind_text">텍스트</string>
     <string name="file_kind_office">문서</string>
     <string name="file_kind_other">파일</string>
+    <string name="file_state_gone">지워진 파일</string>
+    <string name="file_state_unreachable">여기서는 받을 수 없음</string>
 
     <!-- 링크 -->
     <string name="link_open_title">링크를 열까요?</string>

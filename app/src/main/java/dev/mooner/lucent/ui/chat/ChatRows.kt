@@ -3,6 +3,7 @@ package dev.mooner.lucent.ui.chat
 import dev.mooner.lucent.data.Kind
 import dev.mooner.lucent.data.Sender
 import dev.mooner.lucent.data.StoredItem
+import dev.mooner.lucent.ui.common.Plain
 import java.time.Instant
 import java.time.ZoneId
 
@@ -58,6 +59,7 @@ private const val GROUP_GAP_MS = 3 * 60_000L
  * - [working]이면(루시아가 지금 일하는 중) 맨 끝의 안내 줄이 살아 있다고 표시한다.
  * - [typing]이면 맨 끝에 "쓰는 중"을 붙인다.
  * - 스티커만 있는 줄(루시아의 `sticker` 프레임)도 말이다. 바로 앞의 글과 한 묶음으로 이어진다.
+ * - 다른 기기에서 한 내 말은 이 기기에서 한 말과 묶이지 않는다. 묶음의 첫 줄에 그 기기가 적힌다([deviceOf]).
  */
 fun buildRows(
     items: List<StoredItem>,
@@ -74,7 +76,8 @@ fun buildRows(
     fun isLuciaMessage(i: StoredItem) = i.sender != Sender.USER && (i.kind == Kind.TEXT || i.kind == Kind.FILES)
     fun sameGroup(a: StoredItem, b: StoredItem): Boolean = when {
         a.sender == Sender.USER && b.sender == Sender.USER ->
-            a.kind != Kind.CARD && b.kind != Kind.CARD && b.at - a.at <= GROUP_GAP_MS
+            a.kind != Kind.CARD && b.kind != Kind.CARD && b.at - a.at <= GROUP_GAP_MS &&
+                deviceOf(a, ownConversation) == deviceOf(b, ownConversation)
         isLuciaMessage(a) && isLuciaMessage(b) ->
             b.at - a.at <= GROUP_GAP_MS && sourceOf(a, ownConversation) == sourceOf(b, ownConversation)
         else -> false
@@ -134,12 +137,38 @@ fun isLongForm(body: String): Boolean {
     return false
 }
 
-/** 이 앱의 대화가 아닌 곳에서 온 기록의 출처. 이 앱의 말이면 null. */
-enum class Source { OTHER_APP, DISCORD, DAEMON }
+/** 앱 모두의 대화(브리핑·알림, 사양 11.1). 이 앱의 대화와 같이 본다. */
+const val ALL_APPS_CONVERSATION = "app:*"
+
+/**
+ * 루시아(또는 데몬)의 말이 이 앱의 타임라인 밖에서 왔을 때의 출처. 이 앱의 말이면 null.
+ *
+ * 앱 대화는 기기가 여럿이어도 하나다(결정 0067): 다른 기기에서 한 말의 답도 같은 타임라인이므로 출처를 달지 않는다
+ * (물음 쪽에 그 기기가 적힌다, [deviceOf]). 앱 모두의 대화(`app:*`)도 이 앱의 것이다.
+ */
+enum class Source { DISCORD, DAEMON }
 
 fun sourceOf(item: StoredItem, ownConversation: String?): Source? {
     if (item.sender == Sender.DAEMON) return Source.DAEMON
     val conv = item.conversation ?: return null
-    if (conv == ownConversation) return null
-    return if (conv.startsWith("app:")) Source.OTHER_APP else Source.DISCORD
+    if (conv == ownConversation || conv.startsWith("app:")) return null
+    return Source.DISCORD
+}
+
+/** 내 말을 한 곳이 이 기기가 아닐 때: 그 앱의 이름(`sent.from.name`), 이름을 모르는 다른 기기, Discord. */
+sealed interface Device {
+    data class Named(val name: String) : Device
+    data object Other : Device
+    data object Discord : Device
+}
+
+/** 내 말이 이 기기가 아닌 곳에서 한 것이면 그곳. 이 기기에서 했거나 알 수 없으면 null. */
+fun deviceOf(item: StoredItem, ownConversation: String?): Device? {
+    if (item.sender != Sender.USER) return null
+    val named = item.device?.let(Plain::line)?.takeIf { it.isNotBlank() }?.let { Device.Named(it) }
+    val conv = item.conversation ?: return named
+    if (conv == ownConversation || conv == ALL_APPS_CONVERSATION) return null
+    if (!conv.startsWith("app:")) return Device.Discord
+    // 이 앱의 대화를 아직 모르면(연결 전) 이름이 있는 것만 적는다.
+    return named ?: Device.Other.takeIf { ownConversation != null }
 }
