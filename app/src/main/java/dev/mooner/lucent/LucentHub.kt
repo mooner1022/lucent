@@ -445,11 +445,13 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
     }
 
     /**
-     * 놓아 두었던 프레임을 지금 알리라는 말(`alert{seq}`, 다른 기기에서 보지 않아 넘어왔다). 앱이 앞에 있으면 이미 보이고,
-     * 푸시를 받는 앱이면 데몬이 푸시로도 알린다. 그 프레임을 모르거나(다시 깔았다) 이미 닫힌 카드면 아무것도 하지 않는다.
+     * 놓아 두었던 프레임을 지금 알리라는 말(`alert{seq}`, 다른 기기에서 보지 않아 넘어왔다). 대화 화면이 보이면 이미 보고
+     * 있다(봤다고 곧 알린다). 앱이 뒤에 있고 푸시를 받는 앱이면 데몬이 푸시로도 알린다. 앱이 앞에 있어도 다른 화면(설정,
+     * 넘겨받기)이면 푸시가 오지 않으므로 앱이 알린다. 그 프레임을 모르거나(다시 깔았다) 이미 닫힌 카드면 아무것도 하지 않는다.
      */
     private suspend fun onAlert(seq: Long) {
-        if (isForeground || coveredByPush()) return
+        if (chatVisible) return
+        if (!isForeground && coveredByPush()) return
         store.alertable(seq)?.let(notifier::notifyStored)
     }
 
@@ -458,7 +460,8 @@ class LucentHub private constructor(private val app: Application) : GatewayConfi
      * 서버 푸시가 띄운 알림은 번호를 모르므로, 다시 받기가 끝났고 울렸을 수 있는 프레임이 모두 그 번호 안에 있을 때만 치운다.
      */
     private suspend fun onSeenElsewhere(seq: Long) {
-        val newest = if (replayDone) store.meta(ChatStore.META_LAST_ALERT_SEQ)?.toLongOrNull() ?: 0L else null
+        // 울렸을 수 있는 번호를 적어 두기 전의 판에서 올라왔으면 모른다: 처리한 마지막 번호로 본다(모르면 남긴다).
+        val newest = if (replayDone) store.meta(ChatStore.META_LAST_ALERT_SEQ)?.toLongOrNull() ?: lastSeq else null
         notifier.clearUpTo(seq, Seen.clearsAll(seq, newest))
     }
 
